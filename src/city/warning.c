@@ -57,6 +57,9 @@ void city_warning_show(warning_type type)
     else if (type == WARNING_RESOURCES_NOT_AVAILABLE) {
         text = translation_for(TR_WARNING_RESOURCES_NOT_AVAILABLE);
     }
+    else if (type == WARNING_MARBLE_NEEDED_LARGE_TEMPLE) {
+        text = translation_for(TR_WARNING_MARBLE_NEEDED_LARGE_TEMPLE);
+    }
     else {
         text = lang_get_string(19, type - 2);
     }
