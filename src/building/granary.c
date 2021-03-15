@@ -408,6 +408,11 @@ int building_granary_for_getting(building *src, map_point *dst)
             !building_granary_is_gettable(RESOURCE_MEAT,b)) {
             amount_gettable += b->data.granary.resource_stored[RESOURCE_MEAT];
         }
+
+        int max_cart_load = config_get(CONFIG_GP_CH_GRANARIES_GET_DOUBLE) ? 1600 : 800;
+        if (amount_gettable > max_cart_load) {
+            amount_gettable = max_cart_load;
+        }
         if (amount_gettable > 0) {
             int dist = calc_distance_with_penalty(
                 b->x + 1, b->y + 1,
