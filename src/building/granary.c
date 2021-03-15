@@ -382,8 +382,8 @@ int building_granary_for_getting(building *src, map_point *dst)
         return 0;
     }
 
-    int min_dist = INFINITE;
-    int min_building_id = 0;
+    int max_efficiency = 0;
+    int max_efficiency_building_id = 0;
     for (int i = 0; i < non_getting_granaries.num_items; i++) {
         building *b = building_get(non_getting_granaries.building_ids[i]);
         if (!config_get(CONFIG_GP_CH_GETTING_GRANARIES_GO_OFFROAD)) {
@@ -413,18 +413,16 @@ int building_granary_for_getting(building *src, map_point *dst)
                 b->x + 1, b->y + 1,
                 src->x + 1, src->y + 1,
                 src->distance_from_entry, b->distance_from_entry);
-            if (amount_gettable <= 400) {
-                dist *= 2; // penalty for less food
-            }
-            if (dist < min_dist) {
-                min_dist = dist;
-                min_building_id = b->id;
+            int efficiency = amount_gettable / (dist * 2);
+            if (efficiency > max_efficiency) {
+                max_efficiency = efficiency;
+                max_efficiency_building_id = b->id;
             }
         }
     }
-    building *min = building_get(min_building_id);
+    building *min = building_get(max_efficiency_building_id);
     map_point_store_result(min->x + 1, min->y + 1, dst);
-    return min_building_id;
+    return max_efficiency_building_id;
 }
 
 void building_granary_bless(void)
