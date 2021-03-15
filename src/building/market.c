@@ -168,7 +168,7 @@ int building_market_get_storage_destination(building *market)
     }
 
     int can_go = 0;
-    int min_stock = 50;
+    int min_stock = 100;
 
     for (int i = 0; i < INVENTORY_MAX; i++) {
         if (resources[i].num_buildings) {

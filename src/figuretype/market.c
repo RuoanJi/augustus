@@ -51,7 +51,23 @@ static int take_food_from_granary(figure *f, int market_id, int granary_id)
     else {
         max_units = MAX_FOOD_STOCKED_MARKET - market_units;
     }
-    if (granary_units >= 800) {
+    if (granary_units >= 1600) {
+        num_loads = 16;
+    } else if (granary_units >= 1500) {
+        num_loads = 15;
+    } else if (granary_units >= 1400) {
+        num_loads = 14;
+    } else if (granary_units >= 1300) {
+        num_loads = 13;
+    } else if (granary_units >= 1200) {
+        num_loads = 12;
+    } else if (granary_units >= 1100) {
+        num_loads = 11;
+    } else if (granary_units >= 1000) {
+        num_loads = 10;
+    } else if (granary_units >= 900) {
+        num_loads = 9;
+    } else if (granary_units >= 800) {
         num_loads = 8;
     } else if (granary_units >= 700) {
         num_loads = 7;
@@ -130,10 +146,10 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id)
     }
     int num_loads;
     int stored = building_warehouse_get_amount(warehouse, resource);
-    if (stored < 2) {
+    if (stored < 4) {
         num_loads = stored;
     } else {
-        num_loads = 2;
+        num_loads = 4;
     }
     if (num_loads <= 0) {
         return 0;
@@ -141,9 +157,9 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id)
     building_warehouse_remove_resource(warehouse, resource, num_loads);
 
     // create delivery boys
-    int boy1 = create_delivery_boy(f->id, f, FIGURE_DELIVERY_BOY);
-    if (num_loads > 1) {
-        create_delivery_boy(boy1, f, FIGURE_DELIVERY_BOY);
+    int previous_boy = f->id;
+    for (int i = 0; i < num_loads; i++) {
+        previous_boy = create_delivery_boy(previous_boy, f, FIGURE_DELIVERY_BOY);
     }
     return 1;
 }

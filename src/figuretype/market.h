@@ -3,7 +3,7 @@
 
 #include "figure/figure.h"
 
-#define MAX_FOOD_STOCKED_MARKET 800
+#define MAX_FOOD_STOCKED_MARKET 1600
 #define MAX_FOOD_STOCKED_MESS_HALL 1600
 
 int figure_market_create_delivery_boy(int leader_id, figure* f, int type);
