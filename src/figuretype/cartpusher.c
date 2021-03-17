@@ -632,7 +632,7 @@ void figure_warehouseman_action(figure *f)
             f->wait_ticks++;
             if (f->wait_ticks > 4) {
                 f->loads_sold_or_carrying = 0;
-                while (f->loads_sold_or_carrying < 4 && 0 == building_warehouse_remove_resource(
+                while (f->loads_sold_or_carrying < 8 && 0 == building_warehouse_remove_resource(
                     building_get(f->destination_building_id), f->collecting_item_id, 1)) {
                     f->loads_sold_or_carrying++;
                 }
