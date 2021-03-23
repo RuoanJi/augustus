@@ -24,4 +24,5 @@ void window_building_draw_pottery_workshop(building_info_context *c);
 void window_building_draw_shipyard(building_info_context *c);
 void window_building_draw_wharf(building_info_context *c);
 
+void window_building_draw_depot(building_info_context* c);
 #endif // WINDOW_BUILDING_INDUSTRY_H

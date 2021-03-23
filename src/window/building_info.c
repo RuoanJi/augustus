@@ -681,6 +681,8 @@ static void draw_background(void)
             window_building_draw_mission_post(&context);
         } else if (btype == BUILDING_WATCHTOWER) {
             window_building_draw_watchtower(&context);
+        } else if (btype == BUILDING_DEPOT) {
+            window_building_draw_depot(&context);
         }
     } else if (context.type == BUILDING_INFO_LEGION) {
         window_building_draw_legion_info(&context);
