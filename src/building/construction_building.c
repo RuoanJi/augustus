@@ -712,7 +712,7 @@ static void add_to_map(int type, building *b, int size,
             building_monument_initialize(b);
             break;
         case BUILDING_DEPOT:
-            add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Aesthetics"), "ornamental fir"));
+            add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Aesthetics"), "obelisk"));
             break;
     }
     map_routing_update_land();

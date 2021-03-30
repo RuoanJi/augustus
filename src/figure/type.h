@@ -95,6 +95,7 @@ typedef enum {
     FIGURE_WATCHMAN = 82,
     FIGURE_WATCHTOWER_ARCHER = 83,
     FIGURE_FRIENDLY_ARROW = 84,
+    FIGURE_DEPOT_CART_PUSHER = 85,
 } figure_type;
 
 typedef enum {

@@ -192,6 +192,10 @@ static translation_string all_strings[] = {
     {TR_BUILDING_WORK_CAMP_DESC, "Laborers gather here to transport materials to construction sites." },
     {TR_BUILDING_DEPOT, "Cart depot"},
     {TR_BUILDING_DEPOT_DESC, "Placeholder"},
+    {TR_BUILDING_NONE, "None"},
+    {TR_ORDER_CONDITION_ALWAYS, "Always"},
+    {TR_DEPOST_SELECT_SOURCE, "Select source storage" },
+    {TR_DEPOST_SELECT_DESTINATION, "Select destination storage" },
     {TR_HEADER_HOUSING, "Housing"},
     {TR_ADVISOR_HOUSING_ROOM, "City housing has room available for"},
     {TR_ADVISOR_HOUSING_NO_ROOM, "There is no room available in city housing."},
@@ -564,7 +568,9 @@ static translation_string all_strings[] = {
     { TR_CITY_WARNING_GRANARY_BREAKIN, "A granary was looted" },
     { TR_CITY_WARNING_THEFT, "Funds were stolen from a forum or senate" },
     { TR_CITY_MESSAGE_TITLE_LOOTING, "Looting in the city"},
-    { TR_CITY_MESSAGE_TEXT_LOOTING, "A warehouse or granary was looted by angry citizens and goods were stolen. Low sentiment makes these incidents more likely."}
+    { TR_CITY_MESSAGE_TEXT_LOOTING, "A warehouse or granary was looted by angry citizens and goods were stolen. Low sentiment makes these incidents more likely."},
+    { TR_BUILDING_GRANARY, "Granary" },
+    { TR_BUILDING_WAREHOUSE, "Warehouse" }
 };
 
 void translation_english(const translation_string **strings, int *num_strings)

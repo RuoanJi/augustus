@@ -6,6 +6,7 @@
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
+#include "figuretype/depot.h"
 #include "figuretype/docker.h"
 #include "figuretype/editor.h"
 #include "figuretype/enemy.h"
@@ -113,6 +114,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_watchman_action,
     figure_watchtower_archer_action,
     figure_friendly_arrow_action,
+    figure_depot_cartpusher_action,
 }; 
 
 void figure_action_handle(void)

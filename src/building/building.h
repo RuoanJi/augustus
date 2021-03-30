@@ -1,6 +1,8 @@
 #ifndef BUILDING_BUILDING_H
 #define BUILDING_BUILDING_H
 
+// TODO why?
+#include <building/depot.h>
 #include "building/type.h"
 #include "core/buffer.h"
 
@@ -138,7 +140,16 @@ typedef struct {
             int progress;
             short monument_phase;
         } monument;
-
+        struct {
+            order order1;
+            order order2;
+            order order3;
+            order order4;
+            short figure_id1;
+            short figure_id2;
+            short figure_id3;
+            short figure_id4;
+        } depot;
     } data;
     int tax_income_or_storage;
     unsigned char house_days_without_food;

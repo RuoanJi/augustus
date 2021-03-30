@@ -66,10 +66,8 @@ static int big_people_image(figure_type type)
     {
     case FIGURE_WORK_CAMP_SLAVE:
         return assets_get_image_id(assets_get_group_id("Areldir", "Slave_Walker"), "Slave Portrait");
-        break;
     case FIGURE_MESS_HALL_COLLECTOR:
         return assets_get_image_id(assets_get_group_id("Areldir", "Mess_Hall_Walker"), "M Hall Portrait");
-        break;
     case FIGURE_TRADE_CARAVAN_DONKEY:
     case FIGURE_TRADE_CARAVAN:
         if (scenario_property_climate() == CLIMATE_DESERT) {
@@ -78,6 +76,8 @@ static int big_people_image(figure_type type)
     case FIGURE_BARKEEP:
     case FIGURE_BARKEEP_SUPPLIER:
         return assets_get_image_id(assets_get_group_id("Areldir", "Entertainment"), "Barkeep Portrait");
+    case FIGURE_DEPOT_CART_PUSHER:
+        return assets_get_image_id(assets_get_group_id("Areldir", "Slave_Walker"), "Slave Portrait");
     default:
         break;
     }
@@ -295,6 +295,11 @@ static void draw_cartpusher(building_info_context *c, figure *f)
     }
 }
 
+static void draw_depot_cartpusher(building_info_context* c, figure* f)
+{
+
+}
+
 static void draw_supplier(building_info_context *c, figure *f)
 {
     image_draw(big_people_image(f->type), c->x_offset + 28, c->y_offset + 112);
@@ -404,6 +409,8 @@ static void draw_figure_info(building_info_context *c, int figure_id)
         draw_supplier(c, f);
     } else if (type == FIGURE_WORK_CAMP_WORKER || type == FIGURE_WORK_CAMP_SLAVE) {
         draw_monument_worker(c, f);
+    } else if (type == FIGURE_DEPOT_CART_PUSHER) {
+        draw_depot_cartpusher(c, f);
     } else {
         draw_normal_figure(c, f);
     }

@@ -62,7 +62,7 @@ augustus_building_properties_mapping augustus_building_properties[AUGUSTUS_BUILD
     {BUILDING_LARGE_MAUSOLEUM, {3,0,0,0,0}, "Areldir", "Minor_Monuments", "Mausoleum L"},
     {BUILDING_WATCHTOWER, {2,0,0,0,0}, "Areldir", "Watchtowers", "Watchtower C OFF"},
     {BUILDING_LIBRARY, {2,0,0,0,0}, "Tomasz", "Building_Upgrades", "Downgraded_Library"},
-    {BUILDING_DEPOT, {1,0,0,0,0}, "Areldir", "Aesthetics", "ornamental fir" },
+    {BUILDING_DEPOT, {2,0,0,0,0}, "Areldir", "Aesthetics", "obelisk" },
     //    {BUILDING_PALLISADE, {1,0,0,0,0}, "Areldir", "Palisade", "Palisade"},
 };
 

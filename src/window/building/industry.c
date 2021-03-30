@@ -282,15 +282,3 @@ void window_building_draw_wharf(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 142);
 }
-
-void window_building_draw_depot(building_info_context* c)
-{
-    window_building_play_sound(c, "wavs/eng_post.wav");
-    outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
-    text_draw_centered(translation_for(TR_BUILDING_DEPOT),
-        c->x_offset, c->y_offset + 12, 16 * c->width_blocks, FONT_LARGE_BLACK, 0);
-    text_draw_multiline(translation_for(TR_BUILDING_DEPOT_DESC),
-        c->x_offset + 32, c->y_offset + 76, 16 * (c->width_blocks - 4), FONT_NORMAL_BLACK, 0);
-    window_building_draw_employment(c, 138);
-}
