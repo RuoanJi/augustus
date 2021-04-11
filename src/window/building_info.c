@@ -37,6 +37,7 @@
 #include "window/message_dialog.h"
 #include "window/building/common.h"
 #include "window/building/culture.h"
+#include "window/building/depot.h"
 #include "window/building/distribution.h"
 #include "window/building/figures.h"
 #include "window/building/government.h"
