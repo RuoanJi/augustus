@@ -1147,8 +1147,8 @@ void window_building_draw_mess_hall(building_info_context *c)
 
 
 static const translation_key TRANSLATION_KEY_ORDER_CONDITION[4] = {
-    TR_ORDER_CONDITION_ALWAYS,
     TR_ORDER_CONDITION_NEVER,
+    TR_ORDER_CONDITION_ALWAYS,
     TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN,
     TR_ORDER_CONDITION_DESTINATION_HAS_LESS_THAN
 };
