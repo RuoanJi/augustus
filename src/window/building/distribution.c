@@ -113,8 +113,6 @@ static generic_button warehouse_order_buttons[] = {
     {314, 0, 20, 20, warehouse_orders, button_none, 2, 0},
 };
 
-
-
 static struct {
     int focus_button_id;
     int orders_focus_button_id;
@@ -128,8 +126,6 @@ static struct {
     int dock_scrollbar_position;
     int dock_max_cities_visible;
 } data;
-
-
 
 uint8_t warehouse_full_button_text[] = "32";
 uint8_t warehouse_3quarters_button_text[] = "24";
