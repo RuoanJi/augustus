@@ -66,6 +66,8 @@ static const city_overlay *get_city_overlay(void)
             return city_overlay_for_theater();
         case OVERLAY_AMPHITHEATER:
             return city_overlay_for_amphitheater();
+        case OVERLAY_ARENA:
+            return city_overlay_for_arena();
         case OVERLAY_COLOSSEUM:
             return city_overlay_for_colosseum();
         case OVERLAY_HIPPODROME:
@@ -610,7 +612,8 @@ int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset)
     }
     int overlay_requires_house =
         overlay_type != OVERLAY_WATER && overlay_type != OVERLAY_FIRE && overlay_type != OVERLAY_LEVY &&
-        overlay_type != OVERLAY_DAMAGE && overlay_type != OVERLAY_NATIVE && overlay_type != OVERLAY_DESIRABILITY 
+        overlay_type != OVERLAY_DAMAGE && overlay_type != OVERLAY_NATIVE && overlay_type != OVERLAY_DESIRABILITY &&
+        overlay_type != OVERLAY_PROBLEMS
         ;
     building *b = building_get(building_id);
     if (overlay_requires_house && !b->house_size) {
