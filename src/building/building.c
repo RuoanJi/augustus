@@ -573,3 +573,16 @@ void building_load_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
 }
+
+translation_key building_translation_key(building *b)
+{
+    switch (b->type)
+    {
+    case BUILDING_GRANARY:
+        return TR_BUILDING_GRANARY;
+    case BUILDING_WAREHOUSE:
+        return TR_BUILDING_WAREHOUSE;
+    default:
+        return TR_BUILDING_NONE;
+    }
+}
