@@ -16,7 +16,7 @@
 #define FIGURE_ARRAY_SIZE_STEP 1000
 
 #define FIGURE_ORIGINAL_BUFFER_SIZE 128
-#define FIGURE_CURRENT_BUFFER_SIZE 128
+#define FIGURE_CURRENT_BUFFER_SIZE 139
 
 static struct {
     int created_sequence;
