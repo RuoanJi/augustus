@@ -184,6 +184,8 @@ building *building_create(building_type type, int x, int y);
 
 void building_clear_related_data(building *b);
 
+void building_trim(void);
+
 void building_update_state(void);
 
 void building_update_desirability(void);
@@ -206,10 +208,6 @@ int building_is_statue_garden_temple(building_type type);
 
 int building_is_fort(building_type type);
 
-int building_get_highest_id(void);
-
-void building_update_highest_id(void);
-
 int building_mothball_toggle(building *b);
 
 int building_mothball_set(building *b, int value);
@@ -225,8 +223,7 @@ void building_clear_all(void);
 void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_ever,
                          buffer *sequence, buffer *corrupt_houses);
 
-void building_load_state(buffer *buf, buffer *highest_id, buffer *highest_id_ever,
-                         buffer *sequence, buffer *corrupt_houses, int includes_building_size);
+void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int includes_building_size);
 
 translation_key building_translation_key(building *b);
 

@@ -203,8 +203,7 @@ void figure_generate_criminals(void)
 {
     building *min_building = 0;
     int min_happiness = 50;
-    int max_id = building_get_highest_id();
-    for (int i = 1; i <= max_id; i++) {
+    for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
         if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
             if (b->sentiment.house_happiness >= 50) {
@@ -263,7 +262,7 @@ void figure_protestor_action(figure *f)
     figure_image_increase_offset(f, 64);
     f->cart_image_id = 0;
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->state = FIGURE_STATE_DEAD;
+        figure_combat_handle_corpse(f);
     }
     f->wait_ticks++;
     if (f->wait_ticks > 200 && f->building_id == 0) {
