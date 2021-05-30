@@ -321,6 +321,18 @@ static int get_new_building_image_id(int map_x, int map_y, int grid_offset,
                     image_id = assets_get_image_id(assets_get_group_id("Areldir", "Mess_Hall"), "Mess OFF Central");
                     break;
             }
+        } else if (type == BUILDING_DEPOT) {
+            switch (scenario_property_climate()) {
+            case CLIMATE_NORTHERN:
+                image_id = assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot N OFF");
+                break;
+            case CLIMATE_DESERT:
+                image_id = assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot S OFF");
+                break;
+            default:
+                image_id = assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot C OFF");
+                break;
+            }
         }
     }
     return image_id;

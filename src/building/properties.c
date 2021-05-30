@@ -64,7 +64,7 @@ augustus_building_properties_mapping augustus_building_properties[AUGUSTUS_BUILD
     {BUILDING_LIBRARY, {2,0,0,0,0}, "Tomasz", "Building_Upgrades", "Downgraded_Library"},
     {BUILDING_CARAVANSERAI, { 4, 1, 0, 0, 0 },  "Areldir", "Econ_Logistics", "Caravanserai N OFF"},
     {BUILDING_SMALL_STATUE, {1,1,0,0,-12}, "Lizzaran", "Aesthetics_L", "V Small Statue" },
-    {BUILDING_DEPOT, {2,0,0,0,0}, "Areldir", "Aesthetics", "obelisk"},
+    {BUILDING_DEPOT, {2,0,0,0,0}, "Areldir", "Econ_Logistics", "Cart Depot N OFF"},
     //    {BUILDING_PALLISADE, {1,0,0,0,0}, "Areldir", "Palisade", "Palisade"},
 };
 

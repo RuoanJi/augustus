@@ -746,7 +746,17 @@ static void add_to_map(int type, building *b, int size,
             building_monument_initialize(b);
             break;
         case BUILDING_DEPOT:
-            add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Aesthetics"), "obelisk"));
+            switch (scenario_property_climate()) {
+            case CLIMATE_NORTHERN:
+                add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot N ON"));
+                break;
+            case CLIMATE_DESERT:
+                add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot S ON"));
+                break;
+            default:
+                add_building(b, assets_get_image_id(assets_get_group_id("Areldir", "Econ_Logistics"), "Cart Depot C ON"));
+                break;
+            }
             break;
     }
     map_routing_update_land();
