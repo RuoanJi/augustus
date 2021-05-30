@@ -1,9 +1,12 @@
 #ifndef BUILDING_BUILDING_H
 #define BUILDING_BUILDING_H
 
+// TODO why?
+#include <building/depot.h>
 #include "building/type.h"
 #include "core/buffer.h"
 #include "core/time.h"
+#include "translation/translation.h"
 
 typedef struct building {
     int id;
@@ -144,6 +147,9 @@ typedef struct building {
             int progress;
             short phase;
         } monument;
+        struct {
+            order order1;
+        } depot;
     } data;
     int tax_income_or_storage;
     unsigned char house_days_without_food;
@@ -230,5 +236,7 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
                          buffer *sequence, buffer *corrupt_houses);
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int includes_building_size);
+
+translation_key building_translation_key(building *b);
 
 #endif // BUILDING_BUILDING_H
