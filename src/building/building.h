@@ -164,6 +164,9 @@ typedef struct building {
             short phase;
         } monument;
         struct {
+            unsigned char was_tent;
+        } rubble;
+        struct {
             order order1;
         } depot;
     } data;

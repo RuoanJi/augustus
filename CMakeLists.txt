@@ -1,21 +1,17 @@
 cmake_minimum_required(VERSION 3.1)
 include(CMakeDependentOption)
 
-if(VITA_BUILD AND SWITCH_BUILD)
-    message(FATAL_ERROR "Cannot build with -DVITA_BUILD=ON and -DSWITCH_BUILD=ON at the same time")
-endif()
+set(TARGET_PLATFORM "default" CACHE STRING "Platform to cross-compile for. Options: vita switch android emscripten. Leave blank for no cross compilation")
+set_property(CACHE TARGET_PLATFORM PROPERTY STRINGS default vita switch android emscripten)
 
-if((VITA_BUILD OR SWITCH_BUILD) AND ANDROID_BUILD)
-    message(FATAL_ERROR "Cannot build with -DVITA_BUILD=ON or -DSWITCH_BUILD=ON and -DANDROID_BUILD=ON at the same time")
-endif()
+string(TOLOWER ${TARGET_PLATFORM} TARGET_PLATFORM)
 
 option(DRAW_FPS "Draw FPS on the top left corner of the window." OFF)
 option(SYSTEM_LIBS "Use system libraries when available." ON)
-cmake_dependent_option(VITA_BUILD "Build for the PlayStation Vita handheld game console." OFF "NOT MSVC" OFF)
-cmake_dependent_option(SWITCH_BUILD "Build for the Nintendo Switch handheld game console." OFF "NOT MSVC; NOT VITA_BUILD" OFF)
-cmake_dependent_option(ANDROID_BUILD "Build for the Android environment." OFF "NOT MSVC; NOT VITA_BUILD; NOT SWITCH_BUILD" OFF)
+option(EMSCRIPTEN_LOAD_SDL_PORTS "Load SDL and SDL_mixer emscripten ports instead of compiling them" OFF)
+option(LINK_MPG123 "Link mpg123 statically to Julius instead of relying on a library." OFF)
 
-if(VITA_BUILD AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+if(${TARGET_PLATFORM} STREQUAL "vita" AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     if(DEFINED ENV{VITASDK})
         set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
     else()
@@ -23,7 +19,7 @@ if(VITA_BUILD AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     endif()
 endif()
 
-if(SWITCH_BUILD AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+if(${TARGET_PLATFORM} STREQUAL "switch" AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     if(DEFINED ENV{DEVKITPRO})
         set(DEVKITPRO $ENV{DEVKITPRO})
         set(CMAKE_TOOLCHAIN_FILE "./cmake/switch.cmake" CACHE PATH "toolchain file")
@@ -32,11 +28,20 @@ if(SWITCH_BUILD AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
     endif()
 endif()
 
+if(${TARGET_PLATFORM} STREQUAL "emscripten" AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if(DEFINED ENV{EMSDK})
+        set(EMSDK $ENV{EMSDK})
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" CACHE PATH "toolchain file")
+    else()
+        message(FATAL_ERROR "Please define EMSDK to point to your Emscripten SDK path!")
+    endif()
+endif()
+
 set(SHORT_NAME augustus)
 set(USER_FRIENDLY_NAME Augustus)
 project(${SHORT_NAME} C)
 
-if (VITA_BUILD)
+if (${TARGET_PLATFORM} STREQUAL "vita")
     include("${VITASDK}/share/vita.cmake" REQUIRED)
     set(VITA_TITLEID  "AUGUSTUS1")
 endif()
@@ -107,7 +112,7 @@ else()
     set(VERSION_REVISION " unknown development version")
 endif()
 
-if(VITA_BUILD)
+if(${TARGET_PLATFORM} STREQUAL "vita")
     string(LENGTH "${PROJECT_VERSION_MAJOR}" NUM_DIGITS)
     if(NUM_DIGITS EQUAL 1)
         set(VITA_VERSION_MAJOR "0${PROJECT_VERSION_MAJOR}")
@@ -129,13 +134,17 @@ if(VITA_BUILD)
     set(VITA_VERSION "${VITA_VERSION_MAJOR}.${VITA_VERSION_MINOR}")
 endif()
 
-if (SWITCH_BUILD)
+if (${TARGET_PLATFORM} STREQUAL "switch")
     string(SUBSTRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}${VERSION_REVISION}" 0 15 SWITCH_VERSION)
 endif()
 
 configure_file(${PROJECT_SOURCE_DIR}/gen/version.c.in ${PROJECT_SOURCE_DIR}/src/platform/version.c)
 configure_file(${PROJECT_SOURCE_DIR}/gen/version.rc.in ${PROJECT_SOURCE_DIR}/res/version.rc)
 configure_file(${PROJECT_SOURCE_DIR}/gen/version.txt.in ${PROJECT_SOURCE_DIR}/res/version.txt)
+
+if(${TARGET_PLATFORM} STREQUAL "emscripten")
+    configure_file(${PROJECT_SOURCE_DIR}/gen/shell.html.in ${PROJECT_SOURCE_DIR}/res/shell.html)
+endif()
 
 if(DRAW_FPS)
   add_definitions(-DDRAW_FPS)
@@ -180,10 +189,6 @@ set(ZLIB_FILES
     ext/zlib/zutil.c
 )
 
-set(PMURHASH_FILES
-    ext/PMurHash/PMurHash.c
-)
-
 set(PLATFORM_FILES
     ${PROJECT_SOURCE_DIR}/src/platform/arguments.c
     ${PROJECT_SOURCE_DIR}/src/platform/augustus.c
@@ -204,18 +209,18 @@ set(PLATFORM_FILES
     ${PROJECT_SOURCE_DIR}/src/platform/virtual_keyboard.c
 )
 
-if (VITA_BUILD)
+if (${TARGET_PLATFORM} STREQUAL "vita")
     set(PLATFORM_FILES
         ${PLATFORM_FILES}
         ${PROJECT_SOURCE_DIR}/src/platform/vita/vita.c
         ${PROJECT_SOURCE_DIR}/src/platform/vita/vita_keyboard.c
     )
-elseif (SWITCH_BUILD)
+elseif (${TARGET_PLATFORM} STREQUAL "switch")
     set(PLATFORM_FILES
         ${PLATFORM_FILES}
         ${PROJECT_SOURCE_DIR}/src/platform/switch/switch.c
     )
-elseif (ANDROID_BUILD)
+elseif (${TARGET_PLATFORM} STREQUAL "android")
     set(PLATFORM_FILES
         ${PLATFORM_FILES}
         ${PROJECT_SOURCE_DIR}/src/platform/android/android.c
@@ -258,6 +263,7 @@ set(BUILDING_FILES
     ${PROJECT_SOURCE_DIR}/src/building/building_variant.c
     ${PROJECT_SOURCE_DIR}/src/building/caravanserai.c
     ${PROJECT_SOURCE_DIR}/src/building/clone.c
+    ${PROJECT_SOURCE_DIR}/src/building/connectable.c
     ${PROJECT_SOURCE_DIR}/src/building/construction.c
     ${PROJECT_SOURCE_DIR}/src/building/construction_building.c
     ${PROJECT_SOURCE_DIR}/src/building/construction_clear.c
@@ -274,7 +280,7 @@ set(BUILDING_FILES
     ${PROJECT_SOURCE_DIR}/src/building/house_evolution.c
     ${PROJECT_SOURCE_DIR}/src/building/house_population.c
     ${PROJECT_SOURCE_DIR}/src/building/house_service.c
-    ${PROJECT_SOURCE_DIR}/src/building/image_context.c
+    ${PROJECT_SOURCE_DIR}/src/building/image.c
     ${PROJECT_SOURCE_DIR}/src/building/industry.c
     ${PROJECT_SOURCE_DIR}/src/building/lighthouse.c
     ${PROJECT_SOURCE_DIR}/src/building/list.c
@@ -644,6 +650,11 @@ if(APPLE)
     )
 endif()
 
+set(EMSCRIPTEN_FILES "")
+if(${TARGET_PLATFORM} STREQUAL "emscripten")
+    set(EMSCRIPTEN_FILES ${PROJECT_SOURCE_DIR}/res/shell.html)
+endif()
+
 set(SOURCE_FILES
     ${PLATFORM_FILES}
     ${CORE_FILES}
@@ -664,39 +675,56 @@ set(SOURCE_FILES
     ${EDITOR_FILES}
     ${TRANSLATION_FILES}
     ${TINYFD_FILES}
-    ${PMURHASH_FILES}
     ${PROJECT_SOURCE_DIR}/res/augustus.rc
     ${MACOSX_FILES}
 )
 
-function(GET_SDL_EXT_DIR result module)
-    if(NOT module STREQUAL "")
-        set(module "_${module}")
-    endif()
-    set(SDL_LOCATION ${PROJECT_SOURCE_DIR}/ext/SDL2)
-    file(GLOB children
-        RELATIVE ${SDL_LOCATION}
-        CONFIGURE_DEPENDS
-        ${SDL_LOCATION}/SDL${module}
-        ${SDL_LOCATION}/SDL2${module}
-        ${SDL_LOCATION}/SDL${module}-*
-        ${SDL_LOCATION}/SDL2${module}-*
-    )
-    foreach(child ${children})
-        if(IS_DIRECTORY "${SDL_LOCATION}/${child}")
-            set(${result} "${SDL_LOCATION}/${child}" PARENT_SCOPE)
-            break()
+if(${TARGET_PLATFORM} STREQUAL "emscripten" AND EMSCRIPTEN_LOAD_SDL_PORTS)
+    set(USE_FLAGS "-s USE_SDL=2 -s USE_SDL_MIXER=2 -s SDL2_MIXER_FORMATS=[\"mp3\"] -s USE_MPG123=1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${USE_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${USE_FLAGS}")
+else()
+    function(GET_SDL_EXT_DIR result module)
+        if(NOT module STREQUAL "")
+            set(module "_${module}")
         endif()
-    endforeach()
-endfunction()
+        set(SDL_LOCATION ${PROJECT_SOURCE_DIR}/ext/SDL2)
+        file(GLOB children
+            RELATIVE ${SDL_LOCATION}
+            CONFIGURE_DEPENDS
+            ${SDL_LOCATION}/SDL${module}
+            ${SDL_LOCATION}/SDL2${module}
+            ${SDL_LOCATION}/SDL${module}-*
+            ${SDL_LOCATION}/SDL2${module}-*
+        )
+        foreach(child ${children})
+            if(IS_DIRECTORY "${SDL_LOCATION}/${child}")
+                set(${result} "${SDL_LOCATION}/${child}" PARENT_SCOPE)
+                break()
+            endif()
+        endforeach()
+    endfunction()
 
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
+    find_package(SDL2 REQUIRED)
+    find_package(SDL2_mixer REQUIRED)
+    if(${TARGET_PLATFORM} STREQUAL "emscripten")
+        set(LINK_MPG123 true)
+    endif()
+endif()
 
-if(ANDROID_BUILD)
+if(LINK_MPG123)
+    find_package(MPG123 REQUIRED)
+endif()
+
+if(${TARGET_PLATFORM} STREQUAL "android")
     add_library(${SHORT_NAME} SHARED ${SDL2_ANDROID_HOOK} ${SOURCE_FILES})
 else()
     add_executable(${SHORT_NAME} WIN32 ${SOURCE_FILES})
+endif()
+
+if(${TARGET_PLATFORM} STREQUAL "emscripten")
+    set(CMAKE_EXECUTABLE_SUFFIX .html)
+    set_target_properties(${SHORT_NAME} PROPERTIES LINK_FLAGS "-lidbfs.js -s SINGLE_FILE=1 -s DEMANGLE_SUPPORT=1 -s DYNCALLS=1 --shell-file ${PROJECT_SOURCE_DIR}/res/shell.html --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets -s INITIAL_MEMORY=268435456 -s ALLOW_MEMORY_GROWTH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 -s SAFE_HEAP=1 -s INVOKE_RUN=0 -s EXPORTED_FUNCTIONS=[\"_main\"] -s EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"]  --bind")
 endif()
 
 if(MSVC)
@@ -765,8 +793,12 @@ if(APPLE)
     " BUNDLE DESTINATION ${CMAKE_BINARY_DIR})
 endif()
 
-include_directories(${SDL2_INCLUDE_DIR})
-include_directories(${SDL2_MIXER_INCLUDE_DIR})
+if(SDL2_INCLUDE_DIR)
+    include_directories(${SDL2_INCLUDE_DIR})
+endif()
+if(SDL2_MIXER_INCLUDE_DIR)
+    include_directories(${SDL2_MIXER_INCLUDE_DIR})
+endif()
 
 if(SYSTEM_LIBS)
     find_package(ZLIB)
@@ -804,12 +836,12 @@ else()
     endif()
 endif()
 
-if(VITA_BUILD)
+if(${TARGET_PLATFORM} STREQUAL "vita")
     include_directories(
         $ENV{VITASDK}/arm-vita-eabi/include
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
-elseif (SWITCH_BUILD)
+elseif (${TARGET_PLATFORM} STREQUAL "switch")
     include_directories(
         ${DEVKITPRO}/portlibs/switch/include/SDL2
         ${DEVKITPRO}/libnx/include
@@ -824,7 +856,7 @@ if(MSVC)
     include_directories(ext/dirent)
 endif()
 
-if (VITA_BUILD)
+if(${TARGET_PLATFORM} STREQUAL "vita")
     target_link_libraries (${SHORT_NAME}
         ${SDL2_MIXER_LIBRARY}
         ${SDL2_LIBRARY}
@@ -865,7 +897,7 @@ if (VITA_BUILD)
         FILE res/vita/template.xml sce_sys/livearea/contents/template.xml
         FILE assets assets
     )
-elseif(SWITCH_BUILD)
+elseif (${TARGET_PLATFORM} STREQUAL "switch")
     target_link_libraries (${SHORT_NAME}
         SDL2_mixer
         SDL2
@@ -909,14 +941,17 @@ else()
     if (UNIX AND NOT APPLE AND (CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang"))
         target_link_libraries(${SHORT_NAME} m)
     endif()
-    if(ANDROID_BUILD)
+    if(${TARGET_PLATFORM} STREQUAL "android")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPNG_ARM_NEON_OPT=0 -D_BSD_SOURCE")
         find_library(log-lib log)
         find_library(android-lib android)
         target_link_libraries(${SHORT_NAME} ${log-lib} ${android-lib})
     endif()
+    if(LINK_MPG123)
+        target_link_libraries(${SHORT_NAME} ${MPG123_LIBRARY})
+    endif()
     target_link_libraries (${SHORT_NAME} ${SDL2_LIBRARY} ${SDL2_MIXER_LIBRARY})
-    if(NOT APPLE AND NOT ANDROID_BUILD)
+    if(NOT APPLE AND NOT ${TARGET_PLATFORM} STREQUAL "android")
         install(TARGETS ${SHORT_NAME} RUNTIME DESTINATION bin)
     endif()
 

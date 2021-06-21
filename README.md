@@ -15,6 +15,9 @@ Chat: [Discord](http://www.discord.gg/GamerZakh) (kindly hosted by GamerZakh)
 | Android APK |  [![Download](https://augustus.josecadete.net/badge/release/android.svg)](https://augustus.josecadete.net/download/latest/release/android) | [![Download](https://augustus.josecadete.net/badge/development/android.svg)](https://augustus.josecadete.net/download/latest/development/android) |
 
 
+Alternatively, you can [**try Augustus in your browser**](https://augustus.josecadete.net/play/). Note that you'll still need to provide a valid Caesar 3 installation folder.
+
+
 Augustus is a fork of the Julius project that intends to incorporate gameplay changes.
 =======
 The aim of this project is to provide enhanced, customizable gameplay to Caesar 3 using project Julius UI enhancements.
@@ -51,6 +54,18 @@ stored there. Also, your game must be patched to 1.0.1.0 to use Augustus. If Aug
 you are missing it, you can [download the update here](https://github.com/bvschaik/julius/wiki/Patches).
 
 See [Running Julius](https://github.com/bvschaik/julius/wiki/Running-Julius) for further instructions and startup options.
+
+## Manual
+
+Augustus changes are explained in detail in the comprehensive manual. Below you can find the links to the manual in a few language versions.
+
+| Language | Manual |
+|----------|--------|
+|English   |[Download](https://github.com/Keriew/augustus/raw/master/res/manual/augustus_manual_3_0.pdf)|
+|Chinese   |[Download](https://github.com/Keriew/augustus/raw/master/res/translated_manuals/augustus_manual_chinese_3.0.pdf)|
+|French   |[Download](https://github.com/Keriew/augustus/raw/master/res/translated_manuals/augustus_manual_french_3.0.pdf)|
+|Polish   |[Download](https://github.com/Keriew/augustus/raw/master/res/translated_manuals/augustus_manual_polish_3.0.pdf)|
+|Russian   |[Download](https://github.com/Keriew/augustus/raw/master/res/translated_manuals/augustus_manual_russian_3.0.pdf)|
 
 ## Bugs
 
