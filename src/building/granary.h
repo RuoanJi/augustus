@@ -4,6 +4,11 @@
 #include "building/building.h"
 #include "map/point.h"
 
+#define FULL_GRANARY 3200
+#define THREEQUARTERS_GRANARY 2400
+#define HALF_GRANARY 1600
+#define QUARTER_GRANARY 800
+
 enum {
     GRANARY_TASK_NONE = -1,
     GRANARY_TASK_GETTING = 0

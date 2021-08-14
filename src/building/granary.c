@@ -39,10 +39,6 @@ static int get_amount(building *granary, int resource)
     return granary->data.granary.resource_stored[resource];
 }
 
-int THREEQUARTERS_GRANARY = 1800;
-int HALF_GRANARY = 1200;
-int QUARTER_GRANARY = 600;
-
 int building_granary_is_accepting(int resource, building *b)
 {
     const building_storage *s = building_storage_get(b->storage_id);
