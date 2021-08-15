@@ -4,6 +4,7 @@
 #include "building/building.h"
 #include "map/point.h"
 
+// make sure to update src/window/building/distribution.c so the number renders correctly
 #define FULL_GRANARY 3200
 #define THREEQUARTERS_GRANARY 2400
 #define HALF_GRANARY 1600
