@@ -270,6 +270,7 @@ set(BUILDING_FILES
     ${PROJECT_SOURCE_DIR}/src/building/construction_routed.c
     ${PROJECT_SOURCE_DIR}/src/building/construction_warning.c
     ${PROJECT_SOURCE_DIR}/src/building/count.c
+    ${PROJECT_SOURCE_DIR}/src/building/data_transfer.c
     ${PROJECT_SOURCE_DIR}/src/building/destruction.c
     ${PROJECT_SOURCE_DIR}/src/building/distribution.c
     ${PROJECT_SOURCE_DIR}/src/building/dock.c
@@ -319,6 +320,7 @@ set(CITY_FILES
     ${PROJECT_SOURCE_DIR}/src/city/military.c
     ${PROJECT_SOURCE_DIR}/src/city/mission.c
     ${PROJECT_SOURCE_DIR}/src/city/population.c
+    ${PROJECT_SOURCE_DIR}/src/city/race_bet.c
     ${PROJECT_SOURCE_DIR}/src/city/ratings.c
     ${PROJECT_SOURCE_DIR}/src/city/request.c
     ${PROJECT_SOURCE_DIR}/src/city/resource.c
@@ -598,6 +600,7 @@ set(WINDOW_FILES
     ${PROJECT_SOURCE_DIR}/src/window/overlay_menu.c
     ${PROJECT_SOURCE_DIR}/src/window/plain_message_dialog.c
     ${PROJECT_SOURCE_DIR}/src/window/popup_dialog.c
+    ${PROJECT_SOURCE_DIR}/src/window/race_bet.c
     ${PROJECT_SOURCE_DIR}/src/window/resource_settings.c
     ${PROJECT_SOURCE_DIR}/src/window/select_list.c
     ${PROJECT_SOURCE_DIR}/src/window/set_salary.c
@@ -724,7 +727,7 @@ endif()
 
 if(${TARGET_PLATFORM} STREQUAL "emscripten")
     set(CMAKE_EXECUTABLE_SUFFIX .html)
-    set_target_properties(${SHORT_NAME} PROPERTIES LINK_FLAGS "-lidbfs.js -s SINGLE_FILE=1 -s DEMANGLE_SUPPORT=1 -s DYNCALLS=1 --shell-file ${PROJECT_SOURCE_DIR}/res/shell.html --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets -s INITIAL_MEMORY=268435456 -s ALLOW_MEMORY_GROWTH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 -s SAFE_HEAP=1 -s INVOKE_RUN=0 -s EXPORTED_FUNCTIONS=[\"_main\"] -s EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"]  --bind")
+    set_target_properties(${SHORT_NAME} PROPERTIES LINK_FLAGS "-lidbfs.js -s SINGLE_FILE=1 -s DEMANGLE_SUPPORT=1 -s DYNCALLS=1 --shell-file ${PROJECT_SOURCE_DIR}/res/shell.html --embed-file ${PROJECT_SOURCE_DIR}/assets@/assets -s INITIAL_MEMORY=268435456 -s ALLOW_MEMORY_GROWTH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 -s SAFE_HEAP=1 -s INVOKE_RUN=0 -s EXPORTED_FUNCTIONS=[\"_main\"] -s EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"]  --bind")
 endif()
 
 if(MSVC)

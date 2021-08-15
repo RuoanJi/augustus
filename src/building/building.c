@@ -2,6 +2,7 @@
 
 #include "building/building_state.h"
 #include "building/building_variant.h"
+#include "building/granary.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -249,7 +250,7 @@ building *building_create(building_type type, int x, int y)
     }
 
     if (type == BUILDING_GRANARY) {
-        b->data.granary.resource_stored[RESOURCE_NONE] = 2400;
+        b->data.granary.resource_stored[RESOURCE_NONE] = FULL_GRANARY;
     }
 
     if (type == BUILDING_MARKET) {
@@ -308,6 +309,7 @@ void building_clear_related_data(building *b)
 {
     if (b->storage_id) {
         building_storage_delete(b->storage_id);
+        b->storage_id = 0;
     }
     if (b->type == BUILDING_SENATE_UPGRADED) {
         city_buildings_remove_senate(b);
@@ -382,7 +384,7 @@ void building_update_state(void)
                 road_recalc = 1;
             }
             map_building_tiles_remove(i, b->x, b->y);
-            if (b->type == BUILDING_ROADBLOCK) {
+            if (building_type_is_roadblock(b->type)) {
                 // Leave the road behind the deleted roadblock
                 map_terrain_add(b->grid_offset, TERRAIN_ROAD);
                 road_recalc = 1;
@@ -529,6 +531,17 @@ int building_get_levy(const building *b)
     if (levy <= 0) {
         return 0;
     }
+    if (building_monument_type_is_monument(b->type) && b->data.monument.phase != MONUMENT_FINISHED) {
+        return 0;
+    }
+    if (b->state != BUILDING_STATE_IN_USE && levy && !b->prev_part_building_id) {
+        return 0;
+    }
+    if (b->prev_part_building_id) {
+        return 0;
+    }
+
+
     // Pantheon base bonus
     if (building_monument_working(BUILDING_PANTHEON) &&
         ((b->type >= BUILDING_SMALL_TEMPLE_CERES && b->type <= BUILDING_LARGE_TEMPLE_VENUS) ||

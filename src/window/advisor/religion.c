@@ -69,14 +69,22 @@ static void draw_god_row(god_type god, int y_offset, building_type small_temple,
 
 static void draw_oracle_row(void)
 {
+    int oracle_count = building_count_active(BUILDING_ORACLE) + building_count_active(BUILDING_SMALL_MAUSOLEUM);
+    int large_oracle_count = building_count_active(BUILDING_NYMPHAEUM) +
+        building_count_active(BUILDING_PANTHEON) + building_count_active(BUILDING_LARGE_MAUSOLEUM);
     lang_text_draw(59, 8, 40, 166, FONT_NORMAL_WHITE);
-    text_draw_number_centered(building_count_active(BUILDING_ORACLE), 230, 166, 50, FONT_NORMAL_WHITE);
+    text_draw_number_centered(oracle_count, 230, 166, 50, FONT_NORMAL_WHITE);
     if (building_count_active(BUILDING_PANTHEON)) {
-        text_draw_number_centered(building_count_active(BUILDING_NYMPHAEUM) +
-            building_count_active(BUILDING_PANTHEON), 290, 166, 50, FONT_NORMAL_GREEN);
+        text_draw_number_centered(large_oracle_count, 290, 166, 50, FONT_NORMAL_GREEN);
     } else {
-        text_draw_number_centered(building_count_active(BUILDING_NYMPHAEUM), 290, 166, 50, FONT_NORMAL_WHITE);
+        text_draw_number_centered(large_oracle_count, 290, 166, 50, FONT_NORMAL_WHITE);
     }
+}
+
+static void draw_lararium_row(void)
+{
+    text_draw(translation_for(TR_WINDOW_ADVISOR_RELIGION_LARARIUMS), 40, 186, FONT_NORMAL_WHITE, 0);
+    text_draw_number_centered(building_count_total(BUILDING_LARARIUM), 230, 186, 50, FONT_NORMAL_WHITE);
 }
 
 static int get_festival_advice(void)
@@ -134,7 +142,7 @@ static int draw_background(void)
     lang_text_draw(59, 9, 370, 32, FONT_SMALL_PLAIN);
     lang_text_draw(59, 7, 370, 46, FONT_SMALL_PLAIN);
 
-    inner_panel_draw(32, 60, 36, 8);
+    inner_panel_draw(32, 60, 36, 9);
 
     // god rows
     draw_god_row(GOD_CERES, 66, BUILDING_SMALL_TEMPLE_CERES,
@@ -151,9 +159,12 @@ static int draw_background(void)
     // oracles
     draw_oracle_row();
 
+    // larariums
+    draw_lararium_row();
+
     city_gods_calculate_least_happy();
 
-    lang_text_draw_multiline(59, 21 + get_religion_advice(), 60, 196, 512, FONT_NORMAL_BLACK);
+    lang_text_draw_multiline(59, 21 + get_religion_advice(), 60, 216, 512, FONT_NORMAL_BLACK);
 
     draw_festival_info();
 

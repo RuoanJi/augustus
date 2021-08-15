@@ -5,7 +5,9 @@
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/dock.h"
+#include "building/granary.h"
 #include "building/image.h"
+#include "building/monument.h"
 #include "building/properties.h"
 #include "building/rotation.h"
 #include "building/type.h"
@@ -122,7 +124,8 @@ static void draw_footprint(int x, int y, int grid_offset)
             }
             int view_x, view_y, view_width, view_height;
             city_view_get_scaled_viewport(&view_x, &view_y, &view_width, &view_height);
-            if (b->state == BUILDING_STATE_IN_USE) {
+            if (b->state == BUILDING_STATE_IN_USE &&
+                (!building_monument_is_monument(b) || b->data.monument.phase <= 0)) {
                 int direction;
                 if (x < view_x + 100) {
                     direction = SOUND_DIRECTION_LEFT;
@@ -361,16 +364,16 @@ static void draw_granary_stores(const image *img, const building *b, int x, int 
         x + img->sprite_offset_x,
         y + 60 + img->sprite_offset_y - img->height,
         color_mask);
-    if (b->data.granary.resource_stored[RESOURCE_NONE] < 2400) {
+    if (b->data.granary.resource_stored[RESOURCE_NONE] < FULL_GRANARY) {
         image_draw_masked(image_group(GROUP_BUILDING_GRANARY) + 2, x + 33, y - 60, color_mask);
     }
-    if (b->data.granary.resource_stored[RESOURCE_NONE] < 1800) {
+    if (b->data.granary.resource_stored[RESOURCE_NONE] < THREEQUARTERS_GRANARY) {
         image_draw_masked(image_group(GROUP_BUILDING_GRANARY) + 3, x + 56, y - 50, color_mask);
     }
-    if (b->data.granary.resource_stored[RESOURCE_NONE] < 1200) {
+    if (b->data.granary.resource_stored[RESOURCE_NONE] < HALF_GRANARY) {
         image_draw_masked(image_group(GROUP_BUILDING_GRANARY) + 4, x + 91, y - 50, color_mask);
     }
-    if (b->data.granary.resource_stored[RESOURCE_NONE] < 600) {
+    if (b->data.granary.resource_stored[RESOURCE_NONE] < QUARTER_GRANARY) {
         image_draw_masked(image_group(GROUP_BUILDING_GRANARY) + 5, x + 117, y - 62, color_mask);
     }
 }
@@ -519,6 +522,9 @@ static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
     }
     static building b;
     b.type = building_construction_type();
+    if (building_connectable_gate_type(b.type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        b.type = building_connectable_gate_type(b.type);
+    }
     b.grid_offset = grid_offset;
     if (building_properties_for_type(b.type)->rotation_offset) {
         b.subtype.orientation = building_rotation_get_rotation();

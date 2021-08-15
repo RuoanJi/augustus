@@ -312,7 +312,7 @@ static void add_to_map(int type, building *b, int size,
 int building_construction_place_building(building_type type, int x, int y)
 {
     int terrain_mask = TERRAIN_ALL;
-    if (type == BUILDING_GATEHOUSE || type == BUILDING_TRIUMPHAL_ARCH || type == BUILDING_ROADBLOCK) {
+    if (type == BUILDING_GATEHOUSE || type == BUILDING_TRIUMPHAL_ARCH || building_type_is_roadblock(type)) {
         terrain_mask = ~TERRAIN_ROAD;
     } else if (type == BUILDING_TOWER) {
         terrain_mask = ~TERRAIN_WALL;
@@ -427,7 +427,7 @@ int building_construction_place_building(building_type type, int x, int y)
     }
 
     if (building_monument_is_grand_temple(type) &&
-        building_monument_count_grand_temples() >= MAX_GRAND_TEMPLES_PER_CITY) {
+        building_monument_count_grand_temples() >= config_get(CONFIG_GP_CH_MAX_GRAND_TEMPLES)) {
         city_warning_show(WARNING_MAX_GRAND_TEMPLES);
         return 0;
     }

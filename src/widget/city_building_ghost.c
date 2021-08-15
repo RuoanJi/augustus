@@ -338,7 +338,8 @@ static int is_fully_blocked(int map_x, int map_y, building_type type, int buildi
     if (!building_monument_type_is_mini_monument(type) && building_monument_has_monument(type)) {
         return 1;
     }
-    if (building_monument_is_grand_temple(type) && building_monument_count_grand_temples() >= 2) {
+    if (building_monument_is_grand_temple(type) &&
+        building_monument_count_grand_temples() >= config_get(CONFIG_GP_CH_MAX_GRAND_TEMPLES)) {
         return 1;
     }
     if (city_finance_out_of_money()) {
@@ -361,11 +362,16 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
     int num_tiles = building_size * building_size;
     int blocked_tiles[MAX_TILES];
     int orientation_index = city_view_orientation() / 2;
+
+    if (building_connectable_gate_type(type) && map_terrain_get(grid_offset) == TERRAIN_ROAD) {
+        type = building_connectable_gate_type(type);
+    }
+
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + TILE_GRID_OFFSETS[orientation_index][i];
         int forbidden_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
         if (type == BUILDING_GATEHOUSE || type == BUILDING_TRIUMPHAL_ARCH ||
-            type == BUILDING_PLAZA || type == BUILDING_ROADBLOCK) {
+            type == BUILDING_PLAZA || type == BUILDING_ROADBLOCK || type == BUILDING_GARDEN_WALL_GATE) {
             forbidden_terrain &= ~TERRAIN_ROAD;
         }
         if (type == BUILDING_TOWER) {

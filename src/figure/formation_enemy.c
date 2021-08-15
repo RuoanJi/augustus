@@ -281,6 +281,7 @@ static void set_native_target_building(formation *m)
             case BUILDING_WAREHOUSE:
             case BUILDING_FORT:
             case BUILDING_ROADBLOCK:
+            case BUILDING_GARDEN_WALL_GATE:
                 break;
             default:
                 {
@@ -295,20 +296,6 @@ static void set_native_target_building(formation *m)
     }
     if (min_building) {
         formation_set_destination_building(m, min_building->x, min_building->y, min_building->id);
-    }
-}
-
-static void approach_target(formation *m)
-{
-    if (map_routing_noncitizen_can_travel_over_land(m->x_home, m->y_home,
-        m->destination_x, m->destination_y, m->destination_building_id, 400) ||
-        map_routing_noncitizen_can_travel_through_everything(m->x_home, m->y_home,
-        m->destination_x, m->destination_y)) {
-        int x_tile, y_tile;
-        if (map_routing_get_closest_tile_within_range(m->x_home, m->y_home,
-            m->destination_x, m->destination_y, 8, 20, &x_tile, &y_tile)) {
-            formation_set_destination(m, x_tile, y_tile);
-        }
     }
 }
 
@@ -594,7 +581,6 @@ static void update_enemy_formation(formation *m, int *roman_distance)
             army->destination_building_id = 0;
         } else {
             set_enemy_target_building(m);
-            approach_target(m);
             army->destination_x = m->destination_x;
             army->destination_y = m->destination_y;
             army->destination_building_id = m->destination_building_id;
