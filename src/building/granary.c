@@ -549,3 +549,19 @@ void building_granary_warehouse_curse(int big)
         }
     }
 }
+
+void building_granary_update_built_granaries_capacity()
+{
+    for (building *b = building_first_of_type(BUILDING_GRANARY); b; b = b->next_of_type) {
+        int total_units = 0;
+        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+            total_units += b->data.granary.resource_stored[resource];
+        }
+        total_units += b->data.granary.resource_stored[RESOURCE_NONE];
+
+        if (total_units < 3200) {
+            b->data.granary.resource_stored[RESOURCE_NONE] += 3200 - total_units;
+        }
+        // for now, we don't handle the case where we decrease granary capacity
+    }
+}
