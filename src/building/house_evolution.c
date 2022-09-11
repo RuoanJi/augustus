@@ -564,7 +564,9 @@ void building_house_process_evolve_and_consume_goods(void)
                 continue;
             }
             building_house_check_for_corruption(b);
-            has_expanded |= evolve_callback[b->type - BUILDING_HOUSE_VACANT_LOT](b, demands);
+            if (!b->has_plague) {
+                has_expanded |= evolve_callback[b->type - BUILDING_HOUSE_VACANT_LOT](b, demands);
+            }
             if (game_time_day() == 0 || game_time_day() == 7) {
                 consume_resources(b);
             }
@@ -720,7 +722,7 @@ void building_house_determine_evolve_text(building *house, int worst_desirabilit
         house->data.house.evolve_text_id = 65;
         return;
     }
-    if (house->subtype.house_level >= 19) { // max level! 
+    if (level >= HOUSE_LUXURY_PALACE) { // max level!
         house->data.house.evolve_text_id = 60;
         return;
     }

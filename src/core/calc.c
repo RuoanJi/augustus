@@ -1,5 +1,22 @@
 #include "core/calc.h"
 
+int calc_digits_in_number(int value)
+{
+    if (value == 0) {
+        return 1;
+    }
+    int total_digits = 0;
+    if (value < 0) {
+        value = -value;
+        total_digits++;
+    }
+    while (value) {
+        total_digits++;
+        value /= 10;
+    }
+    return total_digits;
+}
+
 int calc_adjust_with_percentage(int value, int percentage)
 {
     return percentage * value / 100;
@@ -226,19 +243,27 @@ double calc_bound_double(double value, double min, double max)
     }
 }
 
-int calc_absolute_decrement(int value, int step)
+int calc_absolute_decrement(int value, int *step)
 {
+    if (*step == 0) {
+        return value;
+    } else if (*step < 0) {
+        *step *= -1;
+    }
     if (value == 0) {
         return 0;
+    } else if (value >= 0) {
+        if (*step > value) {
+            *step = value;
+            return 0;
+        }
+    } else {
+        if (*step > -value) {
+            *step = value;
+            return 0;
+        } else {
+            *step *= -1;
+        }
     }
-    if (step == 0) {
-        step = 1;
-    }
-    else if (step < 0) {
-        step = -step;
-    }
-    if (value >= 0) {
-        return (step >= value) ? 0 : value - step;
-    }
-    return (step >= -value) ? 0 : value + step;
+    return value - *step;
 }

@@ -1,15 +1,16 @@
 #include "SDL.h"
 
-#include "core/backtrace.h"
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/file.h"
 #include "core/lang.h"
+#include "core/log.h"
 #include "core/time.h"
 #include "game/game.h"
 #include "game/settings.h"
 #include "game/system.h"
 #include "graphics/screen.h"
+#include "graphics/window.h"
 #include "input/mouse.h"
 #include "input/touch.h"
 #include "platform/arguments.h"
@@ -18,8 +19,10 @@
 #include "platform/keyboard_input.h"
 #include "platform/platform.h"
 #include "platform/prefs.h"
+#include "platform/renderer.h"
 #include "platform/screen.h"
 #include "platform/touch.h"
+#include "window/asset_previewer.h"
 
 #include "tinyfiledialogs/tinyfiledialogs.h"
 
@@ -32,7 +35,7 @@
 #include "platform/switch/switch.h"
 #include "platform/vita/vita.h"
 
-#if defined(_WIN32)
+#ifdef LOG_TO_FILE
 #include <string.h>
 #endif
 
@@ -59,25 +62,9 @@ enum {
 static struct {
     int active;
     int quit;
-} data = { 1, 0 };
+} data = {1, 0};
 
-static void exit_with_status(int status)
-{
-#ifdef __EMSCRIPTEN__
-    EM_ASM(Module.quitGame($0), status);
-#endif
-    exit(status);
-}
-
-static void handler(int sig)
-{
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Oops, crashed with signal %d :(", sig);
-    backtrace_print();
-    exit_with_status(1);
-}
-
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__ANDROID__)
-/* Log to separate file on windows, since we don't have a console there */
+#ifdef LOG_TO_FILE
 static FILE *log_file = 0;
 
 static void write_log(void *userdata, int category, SDL_LogPriority priority, const char *message)
@@ -105,6 +92,7 @@ static void setup_logging(void)
 static void teardown_logging(void)
 {
     if (log_file) {
+        log_repeated_messages();
         file_close(log_file);
     }
 }
@@ -187,15 +175,14 @@ static void run_and_draw(void)
         int y_offset = 24;
         int y_offset_text = y_offset + 5;
         graphics_fill_rect(0, y_offset, 100, 20, COLOR_WHITE);
-        text_draw_number_colored(fps.last_fps,
+        text_draw_number(fps.last_fps,
             'f', "", 5, y_offset_text, FONT_NORMAL_PLAIN, COLOR_FONT_RED);
-        text_draw_number_colored(time_between_run_and_draw - time_before_run,
+        text_draw_number(time_between_run_and_draw - time_before_run,
             'g', "", 40, y_offset_text, FONT_NORMAL_PLAIN, COLOR_FONT_RED);
-        text_draw_number_colored(time_after_draw - time_between_run_and_draw,
+        text_draw_number(time_after_draw - time_between_run_and_draw,
             'd', "", 70, y_offset_text, FONT_NORMAL_PLAIN, COLOR_FONT_RED);
     }
-    platform_screen_update();
-    platform_screen_render();
+    platform_renderer_render();
 }
 #else
 static void run_and_draw(void)
@@ -205,8 +192,7 @@ static void run_and_draw(void)
     game_run();
     game_draw();
 
-    platform_screen_update();
-    platform_screen_render();
+    platform_renderer_render();
 }
 #endif
 
@@ -253,6 +239,26 @@ static void handle_window_event(SDL_WindowEvent *event, int *window_active)
             SDL_Log("Window %d hidden", (unsigned int) event->windowID);
             *window_active = 0;
             break;
+
+        case SDL_WINDOWEVENT_EXPOSED:
+            SDL_Log("Window %d exposed", (unsigned int) event->windowID);
+            window_invalidate();
+            break;
+
+        default:
+            break;
+
+    }
+}
+
+static int handle_event_immediate(void *param1, SDL_Event *event)
+{
+    switch (event->type) {
+        case SDL_APP_WILLENTERBACKGROUND:
+            platform_renderer_pause();
+            return 0;
+        default:
+            return 1;
     }
 }
 
@@ -262,6 +268,22 @@ static void handle_event(SDL_Event *event)
         case SDL_WINDOWEVENT:
             handle_window_event(&event->window, &data.active);
             break;
+        case SDL_APP_DIDENTERFOREGROUND:
+            platform_renderer_resume();
+#if SDL_VERSION_ATLEAST(2, 0, 2)
+        case SDL_RENDER_TARGETS_RESET:
+#endif
+            platform_renderer_invalidate_target_textures();
+            window_invalidate();
+            break;
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+        case SDL_RENDER_DEVICE_RESET:
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING,
+                "Render device lost",
+                "The rendering context was lost.The game will likely blackscreen.\n\n"
+                "Please restart the game to fix the issue.",
+                NULL);
+#endif
         case SDL_KEYDOWN:
             platform_handle_key_down(&event->key);
             break;
@@ -349,6 +371,7 @@ static void handle_event(SDL_Event *event)
 
 static void teardown(void)
 {
+    log_repeated_messages();
     SDL_Log("Exiting game");
     game_exit();
     platform_screen_destroy();
@@ -395,10 +418,17 @@ static int init_sdl(void)
 #endif
 
     if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
-        return 0;
+        // Try starting SDL without joystick support
+        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
+            return 0;
+        } else {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Could not enable joystick support");
+        }
+    } else {
+        platform_joystick_init();
     }
-    platform_joystick_init();
+    SDL_SetEventFilter(handle_event_immediate, 0);
 #if SDL_VERSION_ATLEAST(2, 0, 10)
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
@@ -408,7 +438,9 @@ static int init_sdl(void)
 #ifdef __ANDROID__
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
-    SDL_Log("SDL initialized");
+    SDL_version version;
+    SDL_GetVersion(&version);
+    SDL_Log("SDL initialized, version %u.%u.%u", version.major, version.minor, version.patch);
     return 1;
 }
 
@@ -499,7 +531,7 @@ static int pre_init(const char *custom_data_dir)
         if (platform_file_manager_set_base_path(user_dir) && game_pre_init()) {
             pref_save_data_dir(user_dir);
 #ifdef __ANDROID__
-            android_toast_message("C3 files found. Path saved.");
+            SDL_AndroidShowToast("C3 files found. Path saved.", 0, 0, 0, 0);
 #endif
             return 1;
         }
@@ -523,9 +555,9 @@ static int pre_init(const char *custom_data_dir)
     return 0;
 }
 
-static void setup(const julius_args *args)
+static void setup(const augustus_args *args)
 {
-    signal(SIGSEGV, handler);
+    system_setup_crash_handler();
     setup_logging();
 
     SDL_Log("Augustus version %s", system_version());
@@ -561,16 +593,19 @@ static void setup(const julius_args *args)
         SDL_Log("Exiting: SDL create window failed");
         exit_with_status(-2);
     }
-    // this has to come after platform_screen_create, otherwise it fails on Nintendo Switch
-    system_init_cursors(config_get(CONFIG_SCREEN_CURSOR_SCALE));
 
 #ifdef PLATFORM_ENABLE_INIT_CALLBACK
     platform_init_callback();
 #endif
 
-    time_set_millis(SDL_GetTicks());
+    // This has to come after platform_screen_create, otherwise it fails on Nintendo Switch
+    system_init_cursors(config_get(CONFIG_SCREEN_CURSOR_SCALE));
 
-    if (!game_init()) {
+    time_set_millis(SDL_GetTicks());
+    
+    int result = args->launch_asset_previewer ? window_asset_previewer_show() : game_init();
+
+    if (!result) {
         SDL_Log("Exiting: game init failed");
         exit_with_status(2);
     }
@@ -581,7 +616,7 @@ static void setup(const julius_args *args)
 
 int main(int argc, char **argv)
 {
-    julius_args args;
+    augustus_args args;
     platform_parse_arguments(argc, argv, &args);
 
     setup(&args);

@@ -14,6 +14,8 @@
 // for compatibility with the original game:
 #define CITY_CHANNEL_OFFSET 18
 
+#define CONSTRUCTION_SITE_CHANNEL 64
+
 enum {
     SOUND_CHANNEL_CITY_HOUSE_SLUM = 30,
     SOUND_CHANNEL_CITY_HOUSE_POOR = 34,
@@ -78,6 +80,7 @@ enum {
     SOUND_CHANNEL_CITY_EMPTY_LAND = 128,
     SOUND_CHANNEL_CITY_RIVER = 132,
     SOUND_CHANNEL_CITY_MISSION_POST = 133,
+    SOUND_CHANNEL_CITY_CONSTRUCTION_SITE = 134,
 };
 
 typedef struct {
@@ -116,7 +119,8 @@ static const int BUILDING_TYPE_TO_CHANNEL_ID[] = {
     0, 0, 44, 37, 0, 0, 0, 0, 56, 0, //150-159
     9, 0, 0, 0, 0, 0, 0, 0, 0, 0, //160-169
     44, 44, 44, 24, 0, 0, 0, 0, 0, 0, //170-179
-
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //180-189
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //190-199
 };
 
 static time_millis last_update_time;
@@ -128,7 +132,7 @@ void sound_city_init(void)
     for (int i = 0; i < MAX_CHANNELS; i++) {
         channels[i].last_played_time = last_update_time;
     }
-    for (int i = 1; i < 63; i++) {
+    for (int i = 1; i < 65; i++) {
         channels[i].in_use = 1;
         channels[i].views_threshold = 200;
         channels[i].delay_millis = 30000;
@@ -196,6 +200,7 @@ void sound_city_init(void)
     channels[61].channel = SOUND_CHANNEL_CITY_EMPTY_LAND;
     channels[62].channel = SOUND_CHANNEL_CITY_RIVER;
     channels[63].channel = SOUND_CHANNEL_CITY_MISSION_POST;
+    channels[64].channel = SOUND_CHANNEL_CITY_CONSTRUCTION_SITE;
 }
 
 void sound_city_set_volume(int percentage)
@@ -223,6 +228,19 @@ void sound_city_mark_building_view(building_type type, int num_workers, int dire
     ++channels[channel].total_views;
     ++channels[channel].direction_views[direction];
 }
+
+void sound_city_mark_construction_site_view(int direction)
+{
+    int channel = CONSTRUCTION_SITE_CHANNEL;
+    if (!channel) {
+        return;
+    }
+
+    channels[channel].available = 1;
+    ++channels[channel].total_views;
+    ++channels[channel].direction_views[direction];
+}
+
 
 void sound_city_decay_views(void)
 {

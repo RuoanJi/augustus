@@ -53,6 +53,8 @@ extern struct city_data_t {
         int8_t unknown_value;
         int32_t mess_hall_building_id;
         int32_t num_striking_industries;
+        uint16_t months_since_last_destroyed_iron_mine;
+        uint16_t months_since_last_flooded_clay_pit;
     } building;
     struct {
         int16_t animals;
@@ -199,6 +201,7 @@ extern struct city_data_t {
     struct {
         int32_t wages;
         int32_t wages_rome;
+        int32_t months_since_last_wage_change;
         int32_t workers_available;
         int32_t workers_employed;
         int32_t workers_unemployed;
@@ -241,6 +244,12 @@ extern struct city_data_t {
         int32_t num_hospital_workers;
         int32_t target_value;
         int32_t value;
+        int32_t months_since_last_contaminated_water;
+        struct {
+            int32_t clinic;
+            int32_t barber;
+            int32_t baths;
+        } population_access;
     } health;
     struct {
         int32_t culture;
@@ -299,6 +308,8 @@ extern struct city_data_t {
         int32_t amphitheater_no_shows_weighted;
         int32_t colosseum_shows;
         int32_t colosseum_no_shows_weighted;
+        int32_t arena_shows;
+        int32_t arena_no_shows_weighted;
         int32_t hippodrome_shows;
         int32_t hippodrome_no_shows_weighted;
         int32_t venue_needing_shows;
@@ -337,7 +348,7 @@ extern struct city_data_t {
         int32_t executions_bonus_months;
         int32_t imperial_games_bonus_months;
         int32_t games_4_bonus_months;
-        uint8_t bet_value;
+        uint8_t chosen_horse;
         int32_t bet_amount;
     } games;
     struct {
@@ -346,6 +357,7 @@ extern struct city_data_t {
         int32_t space_in_workshops[6];
         int32_t stored_in_workshops[6];
         int16_t trade_status[RESOURCE_MAX];
+        int16_t export_status_before_stockpiling[RESOURCE_MAX];
         int16_t import_over[RESOURCE_MAX];
         int16_t export_over[RESOURCE_MAX];
         int32_t stockpiled[RESOURCE_MAX];
@@ -387,6 +399,8 @@ extern struct city_data_t {
         int16_t num_sea_routes;
         int16_t land_trade_problem_duration;
         int16_t sea_trade_problem_duration;
+        uint16_t months_since_last_land_trade_problem;
+        uint16_t months_since_last_sea_trade_problem;
         int32_t caravan_import_resource;
         int32_t caravan_backup_import_resource;
         int32_t docker_import_resource;

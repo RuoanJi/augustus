@@ -14,19 +14,18 @@ jobs:
       matrix:
         include:
           - name: Linux AppImage
-            os: ubuntu-16.04
+            os: ubuntu-18.04
             BUILD_TARGET: appimage
             DEPLOY: appimage
           - name: Linux x64
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             cache-key: linux-x64
-            SDL_VERSION: 2.0.14
-            SDL_MIXER_VERSION: 2.0.4
-            MPG123_VERSION: 1.26.5
+            SDL_VERSION: 2.24.0
+            SDL_MIXER_VERSION: 2.6.2
             BUILD_TARGET: linux
             DEPLOY: linux
           - name: Linux x64 (old SDL versions)
-            os: ubuntu-16.04
+            os: ubuntu-18.04
             cache-key: linux-x64
             SDL_VERSION: 2.0.0
             SDL_MIXER_VERSION: 2.0.0
@@ -36,8 +35,8 @@ jobs:
           - name: macOS
             os: macos-latest
             cache-key: macos
-            SDL_VERSION: 2.0.14
-            SDL_MIXER_VERSION: 2.0.4
+            SDL_VERSION: 2.24.0
+            SDL_MIXER_VERSION: 2.6.2
             BUILD_TARGET: mac
             DEPLOY: mac
           - name: PS Vita
@@ -51,16 +50,13 @@ jobs:
           - name: Android
             os: ubuntu-20.04
             cache-key: android
-            SDL_VERSION: 2.0.14
-            SDL_MIXER_VERSION: 2.0.4
+            SDL_VERSION: 2.0.20
+            SDL_MIXER_VERSION: 2.6.2
             BUILD_TARGET: android
             DEPLOY: android
           - name: Emscripten
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             cache-key: emscripten
-            SDL_VERSION: 2.0.14
-            SDL_MIXER_VERSION: 2.0.4
-            MPG123_VERSION: 1.26.5
             BUILD_TARGET: emscripten
             DEPLOY: emscripten
     name: ${{ matrix.name }}
@@ -93,6 +89,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
         run: |
+          ./.ci_scripts/pack_assets.sh
           ./.ci_scripts/run_cmake.sh
           ./.ci_scripts/run_build.sh
       - name: Upload development artifacts
@@ -100,6 +97,7 @@ jobs:
           UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
         run: |
           ./.ci_scripts/build_upload.sh
+        continue-on-error: true
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -124,8 +122,8 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: windows-latest
     env:
-      SDL_VERSION: 2.0.14
-      SDL_MIXER_VERSION: 2.0.4
+      SDL_VERSION: 2.0.20
+      SDL_MIXER_VERSION: 2.6.2
       COMPILER: ${{ matrix.COMPILER }}
       SKIP_UPLOAD: ${{ matrix.SKIP_UPLOAD }}
     steps:
@@ -136,6 +134,14 @@ jobs:
         with:
           path: deps
           key: windows-${{ matrix.cache-key }}-${{ env.SDL_VERSION }}-${{ env.SDL_MIXER_VERSION }}
+      - name: Set up MSYS2
+        if: matrix.COMPILER == 'mingw-32'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw32
+          location: D:\
+          install: mingw-w64-i686-gcc
+          update: true
       - name: Set up environment
         run: ./.ci_scripts/install_sdl.ps1
       - name: Build and test
@@ -144,6 +150,7 @@ jobs:
         env:
           UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
         run: ./.ci_scripts/build_upload.ps1
+        continue-on-error: true
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:

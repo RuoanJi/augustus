@@ -5,7 +5,7 @@
 #include "building/market.h"
 #include "building/storage.h"
 #include "building/warehouse.h"
-#include "city/buildings.h"
+#include "city/health.h"
 #include "city/trade.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -121,7 +121,7 @@ static int store_destination_map_point(int building_id, map_point *dst)
         map_point_store_result(b->x + 1, b->y + 1, dst);
     } else if (b->has_road_access == 1) {
         map_point_store_result(b->x, b->y, dst);
-    } else if (!map_has_road_access(b->x, b->y, 3, dst)) {
+    } else if (!map_has_road_access_rotation(b->subtype.orientation, b->x, b->y, 3, dst)) {
         return 0;
     }
     return 1;
@@ -357,6 +357,7 @@ static void set_docker_as_idle(figure *f)
 void figure_docker_action(figure *f)
 {
     building *b = building_get(f->building_id);
+
     figure_image_increase_offset(f, 12);
     f->cart_image_id = 0;
     if (b->state != BUILDING_STATE_IN_USE) {
@@ -525,6 +526,8 @@ void figure_docker_action(figure *f)
                 if (try_import_resource(f->destination_building_id, f->resource_id, trade_city_id)) {
                     int trader_id = figure_get(b->data.dock.trade_ship_id)->trader_id;
                     trader_record_sold_resource(trader_id, f->resource_id);
+                    city_health_update_sickness_level_in_building(b->id);
+                    city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                     f->wait_ticks = 0;
                     f->destination_x = f->source_x;
@@ -557,6 +560,8 @@ void figure_docker_action(figure *f)
                 if (try_export_resource(f->destination_building_id, f->resource_id, trade_city_id)) {
                     int trader_id = figure_get(b->data.dock.trade_ship_id)->trader_id;
                     trader_record_bought_resource(trader_id, f->resource_id);
+                    city_health_update_sickness_level_in_building(b->id);
+                    city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING;
                 } else {
                     fetch_export_resource(f, b, 1);

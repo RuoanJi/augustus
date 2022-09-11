@@ -118,7 +118,8 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_looter_action,
     figure_delivery_boy_action,
     figure_supplier_action,
-    figure_depot_cartpusher_action
+    figure_fort_supplier_action,
+    figure_depot_cartpusher_action,
 };
 
 void figure_action_handle(void)

@@ -30,19 +30,6 @@ void system_resize(int width, int height);
 void system_get_max_resolution(int *width, int *height);
 
 /**
- * Reload game textures
- * @return 0 if there was a problem reloading the textures, 1 otherwise
- */
-int system_reload_textures(void);
-
-/**
- * Saves the screen buffer to memory
- * Even though it is set to "void", uses "color_t" format
- * @return true if saving was successful, false otherwise
- */
-int system_save_screen_buffer(void *pixels);
-
-/**
  * Center window
  */
 void system_center(void);
@@ -82,6 +69,16 @@ void system_init_cursors(int scale_percentage);
  * @param cursor_id Cursor to set
  */
 void system_set_cursor(int cursor_id);
+
+/**
+ * Show the mouse cursor
+ */
+void system_show_cursor(void);
+
+/**
+ * Hide the mouse cursor
+ */
+void system_hide_cursor(void);
 
 /**
  * Get the key corresponding to the symbol in the current layout
@@ -124,6 +121,16 @@ void system_keyboard_show(void);
 void system_keyboard_hide(void);
 
 /**
+ * Enable text input events
+ */
+void system_start_text_input(void);
+
+/**
+ * Disable text input events
+ */
+void system_stop_text_input(void);
+
+/**
  * Sets mouse to relative mode, where moving the mouse
  * does not move the cursor on the screen
  * @param enabled Boolean: 1 for enable, 0 for disable
@@ -155,21 +162,9 @@ void system_move_mouse_cursor(int delta_x, int delta_y);
 void system_set_mouse_position(int *x, int *y);
 
 /**
- * Creates a ui framebuffer
- * @return The ui framebuffer
+ * Sets up the crash handler
  */
-color_t *system_create_ui_framebuffer(int width, int height);
-
-/**
- * Creates a city framebuffer
- * @return The city framebuffer
- */
-color_t *system_create_city_framebuffer(int width, int height);
-
-/**
- * Releases the city framebuffer
- */
-void system_release_city_framebuffer(void);
+void system_setup_crash_handler(void);
 
 /**
  * Exit the game

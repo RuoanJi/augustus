@@ -2,16 +2,20 @@
 
 #include "core/calc.h"
 #include "core/config.h"
+#include "core/speed.h"
 #include "graphics/menu.h"
+#include "input/hotkey.h"
 
 #include <math.h>
 
 #define ZOOM_STEP 2
+#define ZOOM_DELTA 25
 
 static struct {
     int delta;
     int restore;
     pixel_offset input_offset;
+    speed_type step;
     struct {
         int active;
         int start_zoom;
@@ -21,9 +25,6 @@ static struct {
 
 static void start_touch(const touch *first, const touch *last, int scale)
 {
-    if (!config_get(CONFIG_UI_ZOOM)) {
-        return;
-    }
     data.restore = 0;
     data.touch.active = 1;
     data.input_offset.x = first->current_point.x;
@@ -34,9 +35,6 @@ static void start_touch(const touch *first, const touch *last, int scale)
 
 void zoom_update_touch(const touch *first, const touch *last, int scale)
 {
-    if (!config_get(CONFIG_UI_ZOOM)) {
-        return;
-    }
     if (!data.touch.active) {
         start_touch(first, last, scale);
         return;
@@ -61,57 +59,87 @@ void zoom_update_touch(const touch *first, const touch *last, int scale)
 
 void zoom_end_touch(void)
 {
-    if (!config_get(CONFIG_UI_ZOOM)) {
-        return;
-    }
     data.touch.active = 0;
 }
 
-void zoom_map(const mouse *m)
+void zoom_map(const mouse *m, int current_zoom)
 {
-    if (!config_get(CONFIG_UI_ZOOM) || data.touch.active || m->is_touch) {
+    if (data.touch.active || m->is_touch) {
         return;
     }
     if (m->middle.went_up) {
         data.restore = 1;
+        speed_clear(&data.step);
         data.input_offset.x = m->x;
         data.input_offset.y = m->y - TOP_MENU_HEIGHT;
     }
     if (m->scrolled != SCROLL_NONE) {
         data.restore = 0;
-        data.delta = (m->scrolled == SCROLL_DOWN) ? 20 : -20;
+        int zoom_offset;
+        int zoom_delta;
+        if (m->scrolled == SCROLL_DOWN) {
+            zoom_offset = 0;
+            zoom_delta = hotkey_shift_pressed() ? 1 : ZOOM_DELTA;
+        } else {
+            zoom_offset = -1;
+            zoom_delta = hotkey_shift_pressed() ? -1 : -ZOOM_DELTA;
+        }
+        int multiplier = (current_zoom + zoom_offset) / 100 + 1;
+        data.delta = zoom_delta;
+        if (!hotkey_shift_pressed()) {
+            data.delta *= multiplier;
+        }
+        if (config_get(CONFIG_UI_SMOOTH_SCROLLING)) {
+            speed_clear(&data.step);
+            speed_set_target(&data.step, ZOOM_STEP, SPEED_CHANGE_IMMEDIATE, 1);
+        }
         data.input_offset.x = m->x;
         data.input_offset.y = m->y - TOP_MENU_HEIGHT;
     }
 }
 
-int zoom_update_value(int *zoom, pixel_offset *camera_position)
+int zoom_update_value(int *zoom, int max, pixel_offset *camera_position)
 {
     int step;
     if (!data.touch.active) {
         if (data.restore) {
             data.delta = 100 - *zoom;
+            if (config_get(CONFIG_UI_SMOOTH_SCROLLING)) {
+                speed_set_target(&data.step, ZOOM_STEP, SPEED_CHANGE_IMMEDIATE, 1);
+            }
             data.restore = 0;
         }
         if (data.delta == 0) {
             return 0;
         }
         if (config_get(CONFIG_UI_SMOOTH_SCROLLING)) {
-            step = (data.delta > 0) ? ZOOM_STEP : -ZOOM_STEP;
-            if (*zoom > 100) {
-                step *= 2;
+            step = speed_get_delta(&data.step);
+            step *= (*zoom / 100) + 1;
+            if (!step) {
+                return 1;
             }
         } else {
             step = data.delta;
         }
-        data.delta = calc_absolute_decrement(data.delta, step);
+
+        data.delta = calc_absolute_decrement(data.delta, &step);
+
+        if (data.delta == 0) {
+            speed_clear(&data.step);
+        }
     } else {
+        speed_clear(&data.step);
         data.restore = 0;
-        step = data.touch.current_zoom - *zoom;
+        int current_zoom = data.touch.current_zoom;
+        if (current_zoom > 90 && current_zoom < 110) {
+            current_zoom = 100;
+        }
+        step = current_zoom - *zoom;
     }
 
-    int result = calc_bound(*zoom + step, 50, 200);
+    int result = calc_bound(*zoom + step, 50, max);
     if (*zoom == result) {
+        speed_clear(&data.step);
         data.delta = 0;
         return 0;
     }

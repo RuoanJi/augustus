@@ -58,12 +58,16 @@ endif()
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=implicit-function-declaration")
+endif()
 
+# Fix bug in cmake that expects the resource compiler for mingw to have the toolchain prefix in the name
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.24.0 AND MINGW)
+    set(CMAKE_RC_COMPILER "windres")
 endif()
 
 set(PROJECT_VERSION_MAJOR 3)
-set(PROJECT_VERSION_MINOR 0)
-set(PROJECT_VERSION_PATCH 1)
+set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_PATCH 0)
 set(IS_RELEASE_VERSION FALSE)
 
 if(IS_RELEASE_VERSION)
@@ -150,6 +154,11 @@ if(DRAW_FPS)
   add_definitions(-DDRAW_FPS)
 endif()
 
+set(ASSETS_DIR ${PROJECT_SOURCE_DIR}/res/assets)
+if (EXISTS ${PROJECT_SOURCE_DIR}/res/packed_assets)
+    set(ASSETS_DIR ${PROJECT_SOURCE_DIR}/res/packed_assets)
+endif()
+
 set(EXPAT_FILES
     ext/expat/xmlparse.c
     ext/expat/xmlrole.c
@@ -192,6 +201,7 @@ set(ZLIB_FILES
 set(PLATFORM_FILES
     ${PROJECT_SOURCE_DIR}/src/platform/arguments.c
     ${PROJECT_SOURCE_DIR}/src/platform/augustus.c
+    ${PROJECT_SOURCE_DIR}/src/platform/crash_handler.c
     ${PROJECT_SOURCE_DIR}/src/platform/cursor.c
     ${PROJECT_SOURCE_DIR}/src/platform/file_manager.c
     ${PROJECT_SOURCE_DIR}/src/platform/file_manager_cache.c
@@ -202,6 +212,7 @@ set(PLATFORM_FILES
     ${PROJECT_SOURCE_DIR}/src/platform/mouse.c
     ${PROJECT_SOURCE_DIR}/src/platform/platform.c
     ${PROJECT_SOURCE_DIR}/src/platform/prefs.c
+    ${PROJECT_SOURCE_DIR}/src/platform/renderer.c
     ${PROJECT_SOURCE_DIR}/src/platform/screen.c
     ${PROJECT_SOURCE_DIR}/src/platform/sound_device.c
     ${PROJECT_SOURCE_DIR}/src/platform/touch.c
@@ -231,18 +242,19 @@ endif()
 
 set(CORE_FILES
     ${PROJECT_SOURCE_DIR}/src/core/array.c
-    ${PROJECT_SOURCE_DIR}/src/core/backtrace.c
     ${PROJECT_SOURCE_DIR}/src/core/buffer.c
     ${PROJECT_SOURCE_DIR}/src/core/calc.c
     ${PROJECT_SOURCE_DIR}/src/core/config.c
     ${PROJECT_SOURCE_DIR}/src/core/dir.c
     ${PROJECT_SOURCE_DIR}/src/core/encoding.c
+    ${PROJECT_SOURCE_DIR}/src/core/encoding_japanese.c
     ${PROJECT_SOURCE_DIR}/src/core/encoding_korean.c
     ${PROJECT_SOURCE_DIR}/src/core/encoding_simp_chinese.c
     ${PROJECT_SOURCE_DIR}/src/core/encoding_trad_chinese.c
     ${PROJECT_SOURCE_DIR}/src/core/file.c
     ${PROJECT_SOURCE_DIR}/src/core/hotkey_config.c
     ${PROJECT_SOURCE_DIR}/src/core/image.c
+    ${PROJECT_SOURCE_DIR}/src/core/image_packer.c
     ${PROJECT_SOURCE_DIR}/src/core/io.c
     ${PROJECT_SOURCE_DIR}/src/core/lang.c
     ${PROJECT_SOURCE_DIR}/src/core/locale.c
@@ -482,6 +494,7 @@ set(GRAPHICS_FILES
     ${PROJECT_SOURCE_DIR}/src/graphics/menu.c
     ${PROJECT_SOURCE_DIR}/src/graphics/panel.c
     ${PROJECT_SOURCE_DIR}/src/graphics/rich_text.c
+    ${PROJECT_SOURCE_DIR}/src/graphics/renderer.c
     ${PROJECT_SOURCE_DIR}/src/graphics/screen.c
     ${PROJECT_SOURCE_DIR}/src/graphics/screenshot.c
     ${PROJECT_SOURCE_DIR}/src/graphics/scrollbar.c
@@ -509,6 +522,7 @@ set(WIDGET_FILES
     ${PROJECT_SOURCE_DIR}/src/widget/city_overlay_other.c
     ${PROJECT_SOURCE_DIR}/src/widget/city_overlay_risks.c
     ${PROJECT_SOURCE_DIR}/src/widget/city_pause_menu.c
+    ${PROJECT_SOURCE_DIR}/src/widget/city_water_ghost.c
     ${PROJECT_SOURCE_DIR}/src/widget/city_with_overlay.c
     ${PROJECT_SOURCE_DIR}/src/widget/city_without_overlay.c
     ${PROJECT_SOURCE_DIR}/src/widget/input_box.c
@@ -516,7 +530,6 @@ set(WIDGET_FILES
     ${PROJECT_SOURCE_DIR}/src/widget/map_editor_tool.c
     ${PROJECT_SOURCE_DIR}/src/widget/map_editor_pause_menu.c
     ${PROJECT_SOURCE_DIR}/src/widget/minimap.c
-    ${PROJECT_SOURCE_DIR}/src/widget/scenario_minimap.c
     ${PROJECT_SOURCE_DIR}/src/widget/top_menu.c
     ${PROJECT_SOURCE_DIR}/src/widget/top_menu_editor.c
     ${PROJECT_SOURCE_DIR}/src/widget/sidebar/city.c
@@ -541,6 +554,7 @@ set(WINDOW_FILES
     ${PROJECT_SOURCE_DIR}/src/window/advisor/ratings.c
     ${PROJECT_SOURCE_DIR}/src/window/advisor/religion.c
     ${PROJECT_SOURCE_DIR}/src/window/advisor/trade.c
+    ${PROJECT_SOURCE_DIR}/src/window/asset_previewer.c
     ${PROJECT_SOURCE_DIR}/src/window/build_menu.c
     ${PROJECT_SOURCE_DIR}/src/window/building_info.c
     ${PROJECT_SOURCE_DIR}/src/window/building/common.c
@@ -619,6 +633,7 @@ set(TRANSLATION_FILES
     ${PROJECT_SOURCE_DIR}/src/translation/french.c
     ${PROJECT_SOURCE_DIR}/src/translation/german.c
     ${PROJECT_SOURCE_DIR}/src/translation/italian.c
+    ${PROJECT_SOURCE_DIR}/src/translation/japanese.c
     ${PROJECT_SOURCE_DIR}/src/translation/korean.c
     ${PROJECT_SOURCE_DIR}/src/translation/polish.c
     ${PROJECT_SOURCE_DIR}/src/translation/portuguese.c
@@ -646,7 +661,7 @@ if(APPLE)
     endforeach (RESOURCE)
     set(${VAR} ${_LIST} PARENT_SCOPE)
     endfunction()
-    resource(ASSET_SOURCES ${PROJECT_SOURCE_DIR}/assets Resources/assets *)
+    resource(ASSET_SOURCES ${ASSETS_DIR} Resources/assets *)
     set(MACOSX_FILES
         ${PROJECT_SOURCE_DIR}/res/augustus.icns
         ${ASSET_SOURCES}
@@ -727,7 +742,7 @@ endif()
 
 if(${TARGET_PLATFORM} STREQUAL "emscripten")
     set(CMAKE_EXECUTABLE_SUFFIX .html)
-    set_target_properties(${SHORT_NAME} PROPERTIES LINK_FLAGS "-lidbfs.js -s SINGLE_FILE=1 -s DEMANGLE_SUPPORT=1 -s DYNCALLS=1 --shell-file ${PROJECT_SOURCE_DIR}/res/shell.html --embed-file ${PROJECT_SOURCE_DIR}/assets@/assets -s INITIAL_MEMORY=268435456 -s ALLOW_MEMORY_GROWTH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 -s SAFE_HEAP=1 -s INVOKE_RUN=0 -s EXPORTED_FUNCTIONS=[\"_main\"] -s EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"]  --bind")
+    set_target_properties(${SHORT_NAME} PROPERTIES LINK_FLAGS "-lidbfs.js -s SINGLE_FILE=1 -s DEMANGLE_SUPPORT=1 -s DYNCALLS=1 --shell-file ${PROJECT_SOURCE_DIR}/res/shell.html --embed-file ${ASSETS_DIR}@/assets -s INITIAL_MEMORY=268435456 -s ALLOW_MEMORY_GROWTH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0 -s SAFE_HEAP=1 -s INVOKE_RUN=0 -s EXPORTED_FUNCTIONS=[\"_main\"] -s EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"] -s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[\"$autoResumeAudioContext\"] --bind")
 endif()
 
 if(MSVC)
@@ -872,6 +887,7 @@ if(${TARGET_PLATFORM} STREQUAL "vita")
         m
         SceAppUtil_stub
         SceAudio_stub
+        SceAudioIn_stub
         SceCommonDialog_stub
         SceCtrl_stub
         SceDisplay_stub
@@ -898,7 +914,7 @@ if(${TARGET_PLATFORM} STREQUAL "vita")
         FILE res/vita/bg.png sce_sys/livearea/contents/bg.png
         FILE res/vita/startup.png sce_sys/livearea/contents/startup.png
         FILE res/vita/template.xml sce_sys/livearea/contents/template.xml
-        FILE assets assets
+        FILE ${ASSETS_DIR} assets
     )
 elseif (${TARGET_PLATFORM} STREQUAL "switch")
     target_link_libraries (${SHORT_NAME}
@@ -938,7 +954,7 @@ elseif (${TARGET_PLATFORM} STREQUAL "switch")
     add_custom_command(TARGET ${SHORT_NAME}
         POST_BUILD
         COMMAND ${DEVKITPRO}/tools/bin/nacptool --create "${SHORT_NAME}" "rsn8887" ${SWITCH_VERSION} ${SHORT_NAME}.nacp
-        COMMAND ${DEVKITPRO}/tools/bin/elf2nro ${SHORT_NAME} ${SHORT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/res/switch/icon0.jpg --nacp=${SHORT_NAME}.nacp --romfsdir="${CMAKE_SOURCE_DIR}/assets"
+        COMMAND ${DEVKITPRO}/tools/bin/elf2nro ${SHORT_NAME} ${SHORT_NAME}.nro --icon=${CMAKE_SOURCE_DIR}/res/switch/icon0.jpg --nacp=${SHORT_NAME}.nacp --romfsdir="${ASSETS_DIR}"
     )
 else()
     if (UNIX AND NOT APPLE AND (CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang"))
@@ -958,6 +974,10 @@ else()
         install(TARGETS ${SHORT_NAME} RUNTIME DESTINATION bin)
     endif()
 
+    if(WIN32)
+       target_link_libraries(${SHORT_NAME} dbghelp shlwapi)
+    endif()
+
     if(UNIX AND NOT APPLE)
         install(FILES "res/augustus.desktop" DESTINATION "share/applications" RENAME "com.github.keriew.augustus.desktop")
         install(FILES "res/augustus.metainfo.xml" DESTINATION "share/metainfo" RENAME "com.github.keriew.augustus.metainfo.xml")
@@ -965,7 +985,7 @@ else()
         install(FILES "res/augustus_48.png" DESTINATION "share/icons/hicolor/48x48/apps" RENAME "com.github.keriew.augustus.png")
         install(FILES "res/augustus_256.png" DESTINATION "share/icons/hicolor/256x256/apps" RENAME "com.github.keriew.augustus.png")
         install(FILES "res/augustus_512.png" DESTINATION "share/icons/hicolor/512x512/apps" RENAME "com.github.keriew.augustus.png")
-        install(DIRECTORY "assets" DESTINATION "share/augustus-game")
+        install(DIRECTORY "${ASSETS_DIR}/" DESTINATION "share/augustus-game/assets")
     endif()
 
 endif()

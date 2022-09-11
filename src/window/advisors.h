@@ -8,7 +8,7 @@
 typedef struct {
     int text_id;
     int translation_key;
-    uint8_t *precomposed_text;
+    const uint8_t *precomposed_text;
 } advisor_tooltip_result;
 
 typedef struct {
@@ -20,6 +20,8 @@ typedef struct {
     int (*handle_mouse)(const mouse *m);
     void (*get_tooltip_text)(advisor_tooltip_result *r);
 } advisor_window_type;
+
+void window_advisors_set_advisor(advisor_type advisor);
 
 advisor_type window_advisors_get_advisor(void);
 

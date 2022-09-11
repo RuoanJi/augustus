@@ -104,7 +104,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
         resource_image_offset(b->data.depot.order1.resource_type, RESOURCE_IMAGE_ICON);
     button_border_draw(x_offset + depot_order_buttons[0].x, y_offset + depot_order_buttons[0].y,
         depot_order_buttons[0].width, depot_order_buttons[0].height, data.focus_button_id == 1);
-    image_draw(image_id, x_offset + depot_order_buttons[0].x + 2, y_offset + depot_order_buttons[0].y + 2);
+    image_draw(image_id, x_offset + depot_order_buttons[0].x + 2, y_offset + depot_order_buttons[0].y + 2, COLOR_MASK_NONE, SCALE_NONE);
 
     order_condition_type condition_type = b->data.depot.order1.condition.condition_type;
     text_draw(translation_for(TR_BUILDING_INFO_DEPOT_CONDITION), x_offset, y_offset + depot_order_buttons[3].y + 6, FONT_SMALL_PLAIN, 0);
@@ -231,7 +231,7 @@ void window_building_draw_depot_select_source_foreground(building_info_context *
 
 int handle_mouse_depot_select_source_destination(const mouse *m, building_info_context *c, int is_source)
 {
-    if (scrollbar_handle_mouse(&scrollbar, m)) {
+    if (scrollbar_handle_mouse(&scrollbar, m, 1)) {
         return 1;
     }
 
@@ -347,7 +347,7 @@ void window_building_draw_depot_select_resource_foreground(building_info_context
             y_offset + 46 + depot_select_resource_buttons[index].y,
             214, 26, data.depot_resource_focus_button_id == index + 1);
         image_draw(image_id, c->x_offset + depot_select_resource_buttons[index].x + 3,
-            y_offset + 46 + depot_select_resource_buttons[index].y + 3);
+            y_offset + 46 + depot_select_resource_buttons[index].y + 3, COLOR_MASK_NONE, SCALE_NONE);
         lang_text_draw(23, i, c->x_offset + depot_select_resource_buttons[index].x + 33,
             y_offset + 46 + depot_select_resource_buttons[index].y + 10, FONT_SMALL_PLAIN);
     }
