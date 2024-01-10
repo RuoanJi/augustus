@@ -3,7 +3,7 @@
 #include "building/distribution.h"
 #include "scenario/property.h"
 
-#define MAX_FOOD 600
+#define MAX_FOOD 8000
 
 int building_market_get_max_food_stock(building *market)
 {

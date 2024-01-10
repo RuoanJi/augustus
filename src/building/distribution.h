@@ -11,7 +11,7 @@ typedef struct {
     int min_distance;
 } resource_storage_info;
 
-#define BASELINE_STOCK 50
+#define BASELINE_STOCK 800
 
 int building_distribution_is_good_accepted(resource_type resource, const building *b);
 void building_distribution_toggle_good_accepted(resource_type resource, building *b);

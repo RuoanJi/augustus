@@ -56,25 +56,7 @@ static int take_food_from_granary(figure *f, int market_id, int granary_id)
     } else {
         max_units = MAX_FOOD_STOCKED_MARKET - market_units;
     }
-    if (granary_units >= 800) {
-        num_loads = 8;
-    } else if (granary_units >= 700) {
-        num_loads = 7;
-    } else if (granary_units >= 600) {
-        num_loads = 6;
-    } else if (granary_units >= 500) {
-        num_loads = 5;
-    } else if (granary_units >= 400) {
-        num_loads = 4;
-    } else if (granary_units >= 300) {
-        num_loads = 3;
-    } else if (granary_units >= 200) {
-        num_loads = 2;
-    } else if (granary_units >= 100) {
-        num_loads = 1;
-    } else {
-        num_loads = 0;
-    }
+    num_loads = granary_units / 100 > 32 ? 32 : granary_units / 100;
     if (num_loads > max_units / 100) {
         num_loads = max_units / 100;
     }
@@ -143,10 +125,10 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amo
 
     // create delivery boys
     if (f->type != FIGURE_LIGHTHOUSE_SUPPLIER) {
-        int supplier_id = f->id;
-        int boy1 = figure_supplier_create_delivery_boy(supplier_id, supplier_id, FIGURE_DELIVERY_BOY);
-        if (num_loads > 1) {
-            figure_supplier_create_delivery_boy(boy1, supplier_id, FIGURE_DELIVERY_BOY);
+        int leader_id = f->id;
+        int previous_boy = f->id;
+        for (int i = 0; i < num_loads; i++) {
+            previous_boy = figure_supplier_create_delivery_boy(previous_boy, leader_id, FIGURE_DELIVERY_BOY);
         }
     }
     return 1;
@@ -250,7 +232,7 @@ void figure_supplier_action(figure *f)
                 f->previous_tile_y = f->y;
                 int id = f->id;
                 if (!resource_is_food(f->collecting_item_id)) {
-                    int max_amount = f->type == FIGURE_LIGHTHOUSE_SUPPLIER ? 1 : 2;
+                    int max_amount = f->type == FIGURE_LIGHTHOUSE_SUPPLIER ? 1 : 8;
                     if (!take_resource_from_warehouse(f, f->destination_building_id, max_amount)) {
                         f->state = FIGURE_STATE_DEAD;
                     }
