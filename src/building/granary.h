@@ -5,10 +5,10 @@
 #include "map/point.h"
 
 // make sure to update src/window/building/distribution.c so the number renders correctly
-#define FULL_GRANARY 3200
-#define THREEQUARTERS_GRANARY 2400
-#define HALF_GRANARY 1600
-#define QUARTER_GRANARY 800
+#define FULL_GRANARY 32000
+#define THREEQUARTERS_GRANARY 24000
+#define HALF_GRANARY 16000
+#define QUARTER_GRANARY 8000
 
 enum {
     GRANARY_TASK_NONE = -1,
