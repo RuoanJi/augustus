@@ -965,7 +965,7 @@ void figure_trade_ship_action(figure *f)
 
 int figure_trade_land_trade_units(void)
 {
-    int unit = 8;
+    int unit = 40;
 
     if (building_monument_working(BUILDING_GRAND_TEMPLE_MERCURY)) {
         int add_unit = 0;
@@ -1002,7 +1002,7 @@ int figure_trade_land_trade_units(void)
 
 int figure_trade_sea_trade_units(void)
 {
-    int unit = 12;
+    int unit = 60;
     if (building_monument_working(BUILDING_GRAND_TEMPLE_MERCURY)) {
         int add_unit = 0;
         building *b = building_get(building_find(BUILDING_GRAND_TEMPLE_MERCURY));
