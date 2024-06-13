@@ -2,6 +2,7 @@
 
 #include "core/array.h"
 #include "core/log.h"
+#include "game/resource.h"
 #include "game/save_version.h"
 
 #include <string.h>
@@ -101,7 +102,8 @@ void trade_route_reset_traded(int route_id)
 int trade_route_limit_reached(int route_id, resource_type resource)
 {
     route_resource *route = array_item(routes, route_id);
-    return route->traded[resource] >= route->limit[resource];
+    int limit = resource_is_food(resource) ? route->limit[resource] * 10 : route->limit[resource];
+    return route->traded[resource] >= limit;
 }
 
 void trade_routes_save_state(buffer *limit, buffer *traded)
