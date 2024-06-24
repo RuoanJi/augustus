@@ -224,6 +224,8 @@ const model_building MODEL_BRICKWORKS = { 80,-3,1,1,4,10 };
 const model_building MODEL_CONCRETE_MAKER = { 60,-3,1,1,4,10 };
 const model_building MODEL_CITY_MINT = { 250,-3,1,1,3,40 };
 const model_building MODEL_DEPOT = { 100,-3,1,1,2,15 };
+const model_building MODEL_SHIPYARD = { 100,-8,2,2,3,50 };
+const model_building MODEL_WHARF = { 60,-8,2,2,3,30 };
 
 const model_building *model_get_building(building_type type)
 {
@@ -303,6 +305,10 @@ const model_building *model_get_building(building_type type)
             return &MODEL_DEPOT;
         case BUILDING_OVERGROWN_GARDENS:
             return &buildings[BUILDING_GARDENS];
+        case BUILDING_SHIPYARD:
+            return MODEL_SHIPYARD;
+        case BUILDING_WHARF:
+            return MODEL_WHARF;
         default:
             break;
     }
