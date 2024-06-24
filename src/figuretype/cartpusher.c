@@ -440,6 +440,9 @@ void figure_cartpusher_action(figure *f)
         case FIGURE_ACTION_25_CARTPUSHER_AT_GRANARY:
             f->wait_ticks++;
             if (f->wait_ticks > 5) {
+                if (f->loads_sold_or_carrying == 0) {
+                    f->loads_sold_or_carrying = 1;
+                }
                 while (f->loads_sold_or_carrying > 0) {
                     if (building_granary_add_resource(building_get(f->destination_building_id), f->resource_id, 1)) {
                         f->loads_sold_or_carrying--;
