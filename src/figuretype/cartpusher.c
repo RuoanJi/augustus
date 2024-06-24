@@ -457,7 +457,7 @@ void figure_cartpusher_action(figure *f)
                     f->destination_y = f->source_y;
                 }
             }
-            set_cart_graphic(f);
+            set_cart_graphic(f, f->loads_sold_or_carrying > 0);
             break;
         case FIGURE_ACTION_26_CARTPUSHER_AT_WORKSHOP:
             f->wait_ticks++;
