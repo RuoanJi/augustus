@@ -440,18 +440,24 @@ void figure_cartpusher_action(figure *f)
         case FIGURE_ACTION_25_CARTPUSHER_AT_GRANARY:
             f->wait_ticks++;
             if (f->wait_ticks > 5) {
-                if (building_granary_add_resource(building_get(f->destination_building_id), f->resource_id, 1)) {
-                    city_health_dispatch_sickness(f);
+                while (f->loads_sold_or_carrying > 0) {
+                    if (building_granary_add_resource(building_get(f->destination_building_id), f->resource_id, 1)) {
+                        f->loads_sold_or_carrying--;
+                        city_health_dispatch_sickness(f);
+                    } else {
+                        f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
+                        determine_cartpusher_destination_food(f, road_network_id);
+                        break;
+                    }
+                }
+                if (f->loads_sold_or_carrying == 0) {
                     f->action_state = FIGURE_ACTION_27_CARTPUSHER_RETURNING;
                     f->wait_ticks = 0;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
-                } else {
-                    f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-                    determine_cartpusher_destination_food(f, road_network_id);
                 }
             }
-            f->image_offset = 0;
+            set_cart_graphic(f);
             break;
         case FIGURE_ACTION_26_CARTPUSHER_AT_WORKSHOP:
             f->wait_ticks++;
