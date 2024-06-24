@@ -306,9 +306,9 @@ const model_building *model_get_building(building_type type)
         case BUILDING_OVERGROWN_GARDENS:
             return &buildings[BUILDING_GARDENS];
         case BUILDING_SHIPYARD:
-            return MODEL_SHIPYARD;
+            return &MODEL_SHIPYARD;
         case BUILDING_WHARF:
-            return MODEL_WHARF;
+            return &MODEL_WHARF;
         default:
             break;
     }
