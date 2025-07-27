@@ -267,13 +267,9 @@ const model_building MODEL_NATIVE_MONUMENT = { .cost = 0, .desirability_value = 
 const model_building MODEL_NATIVE_WATCHTOWER = { .cost = 0, .desirability_value = -10, .desirability_step = 1,
  .desirability_step_size = 2, .desirability_range = 4, .laborers = 0 };
 const model_building MODEL_SHIPYARD = { .cost = 100, .desirability_value = -8, .desirability_step = 2,
- .desirability_step_size = 2,, .desirability_range = 3, .laborers = 50 };
+ .desirability_step_size = 2, .desirability_range = 3, .laborers = 50 };
 const model_building MODEL_WHARF = { .cost = 60, .desirability_value = -8, .desirability_step = 2,
- .desirability_step_size = 2,, .desirability_range = 3, .laborers = 30 };
-const model_building MODEL_ARMOURY = { .cost = 50, .desirability_value = -5, .desirability_step = 1,
- .desirability_step_size = 1,, .desirability_range = 4, .laborers = 6 };
-const model_building MODEL_LATRINE = { .cost = 15, .desirability_value = 0, .desirability_step = 0,
- .desirability_step_size = 0,, .desirability_range = 0, .laborers = 2 };
+ .desirability_step_size = 2, .desirability_range = 3, .laborers = 30 };
 
 
 
