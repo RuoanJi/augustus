@@ -344,7 +344,8 @@ int building_granary_maximum_receptible_amount(int resource, building *b)
 
     const building_storage *s = building_storage_get(b->storage_id);
     building_storage_state state = s->resource_state[resource].state;
-    building_storage_quantity quantity = s->resource_state[resource].quantity;
+    building_storage_quantity storage_quantity = s->resource_state[resource].quantity;
+    int quantity = b->type == BUILDING_GRANARY ? storage_quantity * 10 : storage_quantity;
 
     if (state == BUILDING_STORAGE_STATE_NOT_ACCEPTING) {
         return 0;
