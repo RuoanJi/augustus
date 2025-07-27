@@ -1,4 +1,5 @@
 #include "health.h"
+
 #include "building/count.h"
 #include "city/culture.h"
 #include "city/health.h"
@@ -54,6 +55,13 @@ static void print_health_building_info(int y_offset, building_type type, int pop
     }
 }
 
+int window_advisor_health_get_rating_text_id(void)
+{
+    //the group id is 56
+    return city_health() / 10 + 16;
+}
+
+
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
@@ -61,7 +69,7 @@ static int draw_background(void)
 
     int sickness_level = city_health_get_global_sickness_level();
 
-    lang_text_draw(56, 0, 60, 12, FONT_LARGE_BLACK);
+    lang_text_draw(56, 0, 60, 12, FONT_LARGE_BLACK); // City health
 
     int x_offset = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_RATING, 60, 44, FONT_NORMAL_BLACK);
     text_draw_number(city_health(), 0, "", 60 + x_offset, 44, FONT_NORMAL_BLACK, 0);
@@ -71,9 +79,9 @@ static int draw_background(void)
     } else {
         lang_text_draw_multiline(56, 15, 60, 65, 560, FONT_NORMAL_BLACK);
     }
-    lang_text_draw(56, 3, 205, 110, FONT_SMALL_PLAIN);
-    lang_text_draw(56, 4, 330, 110, FONT_SMALL_PLAIN);
-    lang_text_draw_centered(56, 5, 440, 110, 160, FONT_SMALL_PLAIN);
+    lang_text_draw_centered(56, 3, 165, 110, 130, FONT_SMALL_PLAIN);    // Working
+    lang_text_draw(56, 4, 312, 110, FONT_SMALL_PLAIN);                  // Care for
+    lang_text_draw_centered(56, 5, 441, 110, 160, FONT_SMALL_PLAIN);    // City coverage
 
     inner_panel_draw(32, 124, 36, 5);
 

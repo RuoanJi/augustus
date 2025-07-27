@@ -5,10 +5,10 @@
 #include "map/point.h"
 
 // make sure to update src/window/building/distribution.c so the number renders correctly
-#define FULL_GRANARY 32000
-#define THREEQUARTERS_GRANARY 24000
-#define HALF_GRANARY 16000
-#define QUARTER_GRANARY 8000
+#define FULL_GRANARY 320
+#define THREEQUARTERS_GRANARY 240
+#define HALF_GRANARY 160
+#define QUARTER_GRANARY 80
 
 enum {
     GRANARY_TASK_NONE = -1,
@@ -30,6 +30,10 @@ int building_granary_try_remove_resource(building *granary, int resource, int de
 int building_granary_try_fullload_remove_resource(building *granary, int resource, int desired_loads);
 
 int building_granaries_remove_resource(int resource, int amount);
+
+int building_granary_count_available_resource(building *b, int resource, int respect_maintaining);
+
+int building_granaries_count_available_resource(int resource, int respect_maintaining);
 
 int building_granaries_send_resources_to_rome(int resource, int amount);
 

@@ -82,4 +82,17 @@
 		<layer group="this" image="Hellenised_Meeting_Hut_Central_01"/>
 		<layer src="Hellenised_Meeting_Hut_Southern_01" x="0" y="40"/>
 	</image>
+	<!-- Note: Marshland tileset middle tiles (Assets created by Areldir and Hyuukin) -->
+	<image id="Marshland_01" src="Marshland_01" isometric="true"/>
+	<image id="Marshland_02" src="Marshland_02" isometric="true"/>
+	<image id="Marshland_03" src="Marshland_03" isometric="true"/>
+	<image id="Marshland_04" src="Marshland_04" isometric="true"/>
+	<image id="Marshland_05" src="Marshland_05" isometric="true"/>
+	<image id="Marshland_06" src="Marshland_06" isometric="true"/>
+	<image id="Marshland_07" src="Marshland_07" isometric="true"/>
+	<image id="Marshland_08" src="Marshland_08" isometric="true"/>
+	<!-- Note: Native Well variants (Assets created by Areldir) -->
+	<image id="Native_Well_Central" src="Native_Well_Central" isometric="true"/>
+	<image id="Native_Well_Northern" src="Native_Well_Northern" isometric="true"/>
+	<image id="Native_Well_Southern" src="Native_Well_Southern" isometric="true"/>
 </assetlist>

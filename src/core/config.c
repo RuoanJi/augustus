@@ -19,6 +19,7 @@ static const char *ini_keys[] = {
     "enable_music_randomise",
     "enable_audio_in_videos",
     "video_volume",
+    "next_autosave_slot",
     "has_set_user_directories",
     "gameplay_fix_immigration",
     "gameplay_fix_100y_ghosts",
@@ -66,6 +67,8 @@ static const char *ini_keys[] = {
     "gameplay_change_random_mine_or_pit_collapses_take_money",
     "gameplay_change_multiple_barracks",
     "gameplay_change_warehouses_dont_accept",
+    "gameplay_change_markets_dont_accept",
+    "gameplay_change_warehouses_granaries_over_road_placement",
     "gameplay_change_houses_dont_expand_into_gardens",
     "gameplay_change_monuments_boost_culture_rating",
     "gameplay_change_disable_infinite_wolves_spawning",
@@ -73,8 +76,18 @@ static const char *ini_keys[] = {
     "gameplay_change_yearly_autosave",
     "gameplay_change_auto_kill_animals",
     "gameplay_change_nonmilitary_gates_allow_walkers",
+    "gameplay_change_max_autosave_slots",
     "ui_show_speedrun_info",
     "ui_show_desirability_range",
+    "ui_draw_asclepius",
+    "ui_show_desirability_range_all",
+    "ui_highlight_selected_building",
+    "gameplay_change_caravans_move_off_road",
+    "ui_draw_weather",
+    "gameplay_change_storage_step_4",
+    "ui_move_savings_to_right",
+    "gameplay_patrician_devolution_fix"
+
 };
 
 static const char *ini_string_keys[] = {
@@ -99,8 +112,17 @@ static int default_values[CONFIG_MAX_ENTRIES] = {
     [CONFIG_UI_ASK_CONFIRMATION_ON_FILE_OVERWRITE] = 1,
     [CONFIG_SCREEN_DISPLAY_SCALE] = 100,
     [CONFIG_SCREEN_CURSOR_SCALE] = 100,
-    [CONFIG_GP_CH_MAX_GRAND_TEMPLES] = 2,    
+    [CONFIG_GP_CH_MAX_GRAND_TEMPLES] = 2,
     [CONFIG_UI_SHOW_DESIRABILITY_RANGE] = 0,
+    [CONFIG_UI_SHOW_DESIRABILITY_RANGE_ALL] = 0,
+    [CONFIG_UI_HIGHLIGHT_SELECTED_BUILDING] = 1,
+    [CONFIG_GP_CH_MAX_AUTOSAVE_SLOTS] = 10,
+    [CONFIG_GENERAL_NEXT_AUTOSAVE_SLOT] = 0,
+    [CONFIG_GP_CARAVANS_MOVE_OFF_ROAD] = 0,
+    [CONFIG_UI_DRAW_WEATHER] = 0,
+    [CONFIG_GP_STORAGE_INCREMENT_4] = 0,
+    [CONFIG_UI_MOVE_SAVINGS_TO_RIGHT] = 0,
+    [CONFIG_GP_CH_PATRICIAN_DEVOLUTION_FIX] = 1,
 };
 
 static const char default_string_values[CONFIG_STRING_MAX_ENTRIES][CONFIG_STRING_VALUE_MAX] = { 0 };

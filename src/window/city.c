@@ -516,16 +516,17 @@ static void show_overlay_from_grid_offset(int grid_offset)
             break;
         case BUILDING_MISSION_POST:
         case BUILDING_NATIVE_HUT:
+        case BUILDING_NATIVE_HUT_ALT:
         case BUILDING_NATIVE_MEETING:
             overlay = OVERLAY_NATIVE;
             break;
         case BUILDING_WAREHOUSE:
         case BUILDING_WAREHOUSE_SPACE:
         case BUILDING_DEPOT:
-            overlay = OVERLAY_LOGISTICS;
-            break;
         case BUILDING_DOCK:
-            overlay = OVERLAY_SICKNESS;
+        case BUILDING_LIGHTHOUSE:
+        case BUILDING_ARMOURY:
+            overlay = OVERLAY_LOGISTICS;
             break;
         case BUILDING_LATRINES:
             overlay = OVERLAY_HEALTH;
@@ -568,28 +569,25 @@ static int has_storage_orders(building_type type)
 
 static void cycle_legion(void)
 {
-    static int current_legion_id = 1;
-    if (window_is(WINDOW_CITY) || window_is(WINDOW_CITY_MILITARY)) {
-        int legion_id = current_legion_id;
-        current_legion_id = 0;
+    static int current_legion_id = 0;
+    int next_legion_id = 0;
+    for (int pass = 0; pass < 2 && next_legion_id == 0; pass++) {
         for (int i = 1; i < formation_count(); i++) {
-            legion_id++;
-            if (legion_id > MAX_LEGIONS) {
-                legion_id = 1;
+            const formation *m = formation_get(i);
+            if (!m || m->in_use != 1 || !m->is_legion || m->is_herd) {
+                continue;
             }
-            const formation *m = formation_get(legion_id);
-            if (m->in_use == 1 && !m->is_herd && m->is_legion) {
-                if (current_legion_id == 0) {
-                    current_legion_id = legion_id;
-                    break;
-                }
+            if ((pass == 0 && i > current_legion_id) || (pass == 1)) {
+                next_legion_id = i;
+                break;
             }
         }
-        if (current_legion_id > 0) {
-            const formation *m = formation_get(current_legion_id);
-            city_view_go_to_grid_offset(map_grid_offset(m->x_home, m->y_home));
-            window_city_military_show(current_legion_id);
-        }
+    }
+    if (next_legion_id > 0) {
+        current_legion_id = next_legion_id;
+        const formation *m = formation_get(current_legion_id);
+        city_view_go_to_grid_offset(map_grid_offset(m->x_home, m->y_home));
+        window_city_military_show(current_legion_id);
     }
 }
 
@@ -599,11 +597,12 @@ static void toggle_pause(void)
     city_warning_clear_all();
 }
 
-static void set_construction_building_type(building_type type)
+static void set_construction_building_type(building_type type, int rotation)
 {
     if (scenario_allowed_building(type) && building_menu_is_enabled(type)) {
         building_construction_cancel();
         building_construction_set_type(type);
+        building_rotation_setup_rotation(rotation);
         window_request_refresh();
     }
 }
@@ -677,7 +676,7 @@ static void handle_hotkeys(const hotkeys *h)
         building_rotation_rotate_backward();
     }
     if (h->building) {
-        set_construction_building_type(h->building);
+        set_construction_building_type(h->building, 0);
     }
     if (h->undo) {
         game_undo_perform();
@@ -697,20 +696,22 @@ static void handle_hotkeys(const hotkeys *h)
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
-        int building_id = map_building_at(grid_offset);       
-        if (building_id) {   
+        int building_id = map_building_at(grid_offset);
+        if (building_id) {
             building *b = building_main(building_get(building_id));
             if (has_storage_orders(b->type)) {
-                    window_building_info_show(grid_offset);
-                    window_building_info_show_storage_orders();
+                window_building_info_show(grid_offset);
+                window_building_info_show_storage_orders();
             }
         }
     }
     if (h->clone_building) {
         building_type type = building_clone_type_from_grid_offset(widget_city_current_grid_offset());
+        int rotation = building_clone_rotation_from_grid_offset(widget_city_current_grid_offset());
         if (type) {
-            set_construction_building_type(type);
+            set_construction_building_type(type, rotation);
         }
+
     }
     if (h->copy_building_settings) {
         int building_id = map_building_at(widget_city_current_grid_offset());

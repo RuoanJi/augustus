@@ -280,6 +280,33 @@ void empire_select_object(int x, int y)
 
     data.selected_object = empire_object_get_closest(map_x, map_y);
 }
+int empire_get_hovered_object(int x, int y)
+{
+    int map_x = x + data.scroll_x;
+    int map_y = y + data.scroll_y;
+
+    return empire_object_get_closest(map_x, map_y);
+}
+void empire_select_object_by_id(int object_id)
+{
+    object_id += 1;// index 0 means no selection, so increase by 1
+    if (object_id <= 0) {
+        data.selected_object = 0;
+        return;
+    }
+
+    const empire_object *obj = empire_object_get(object_id);
+    if (!obj) {
+        data.selected_object = 0;
+        return;
+    }
+
+    // In the empire view, objects are indexed starting from 1
+    // because 0 means "no selection"
+    data.selected_object = object_id;
+}
+
+
 
 int empire_can_export_resource_to_city(int city_id, int resource)
 {
@@ -293,7 +320,7 @@ int empire_can_export_resource_to_city(int city_id, int resource)
     }
     int in_stock = city_resource_count(resource);
     if (resource_is_food(resource) && config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
-        in_stock += city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+        in_stock += city_resource_count_food_on_granaries(resource);
     }
 
     if (in_stock <= city_resource_export_over(resource)) {
@@ -339,12 +366,12 @@ int empire_can_import_resource_from_city(int city_id, int resource)
 
     int in_stock = city_resource_count(resource);
     if (resource_is_food(resource)) {
-        in_stock += city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+        in_stock += city_resource_count_food_on_granaries(resource);
     }
     int max_in_stock = 0;
     /* NOTE: don't forget to uncomment function get_max_stock_for_population
-    
-    int finished_good = RESOURCE_NONE; 
+
+    int finished_good = RESOURCE_NONE;
     switch (resource) {
         // food and finished materials
         case RESOURCE_WHEAT:

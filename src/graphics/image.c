@@ -16,6 +16,29 @@ void image_draw(int image_id, int x, int y, color_t color, float scale)
     graphics_renderer()->draw_image(img, x, y, color, scale);
 }
 
+void image_draw_silhouette(int image_id, int x, int y, color_t color, float scale)
+{
+    const image *img = image_get(image_id);
+    if (image_is_external(img)) {
+        image_load_external_data(img);
+    } else if ((img->atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_UNPACKED_EXTRA_ASSET) {
+        assets_load_unpacked_asset(image_id);
+    }
+    graphics_renderer()->draw_silhouette(img, x, y, color, scale);
+
+}
+
+void image_draw_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent)
+{
+    float obj_draw_scale = 100.0f / draw_scale_percent;
+    const image *img = image_get(image_id);
+
+    float scaled_x = (((x) +img->width / 2.0f) - (img->width / obj_draw_scale) / 2.0f) * obj_draw_scale;
+    float scaled_y = (((y) +img->height / 2.0f) - (img->height / obj_draw_scale) / 2.0f) * obj_draw_scale;
+
+    image_draw(image_id, scaled_x, scaled_y, color, obj_draw_scale);
+}
+
 void image_draw_enemy(int image_id, int x, int y, float scale)
 {
     if (image_id <= 0 || image_id >= 801) {
@@ -102,7 +125,7 @@ static inline void draw_fullscreen_background(int image_id, int x, int y, color_
     if (alpha != ALPHA_OPAQUE) {
         color_mask &= (alpha << COLOR_BITSHIFT_ALPHA) | 0xffffff;
     }
-    
+
     if (scale >= SCALE_NONE) {
         image_draw(image_id, (s_width - img->width) / 2, (s_height - img->height) / 2, color_mask, SCALE_NONE);
     } else {
