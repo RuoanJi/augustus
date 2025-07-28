@@ -1419,7 +1419,7 @@ static void spawn_figure_wharf(building *b)
             f->building_id = b->id;
             b->figure_id = f->id;
             f->wait_ticks = 30;
-            f->loads_sold_or_carrying = 1;
+            f->loads_sold_or_carrying = 8;
         }
     }
 }
