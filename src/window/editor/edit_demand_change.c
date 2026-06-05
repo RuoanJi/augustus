@@ -29,6 +29,7 @@ static void button_year(const generic_button *button);
 static void button_resource(const generic_button *button);
 static void button_route(const generic_button *button);
 static void button_amount(const generic_button *button);
+static void button_buying(const generic_button *button);
 static void button_delete(const generic_button *button);
 static void button_cancel(const generic_button *button);
 static void button_save(const generic_button *button);
@@ -40,6 +41,7 @@ static generic_button buttons[] = {
     {190, 152, 120, 25, button_resource},
     {420, 152, 200, 25, button_route},
     {350, 192, 100, 25, button_amount},
+    {480, 192, 100, 25, button_buying},
     {16, 238, 250, 25, button_delete},
     {409, 238, 100, 25, button_cancel},
     {524, 238, 100, 25, button_save}
@@ -100,8 +102,13 @@ static void init(int id)
     data.demand_change = *demand_change;
 
     for (int i = 1; i < trade_route_count(); i++) {
-        empire_city *city = empire_city_get(empire_city_get_for_trade_route(i));
-        if (city && (city->type == EMPIRE_CITY_TRADE || city->type == EMPIRE_CITY_FUTURE_TRADE)) {
+        int city_id = empire_city_get_for_trade_route(i);
+        if (city_id < 0) {
+            create_route_info(i, lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_UNKNOWN_ROUTE));
+            continue;
+        }
+        empire_city *city = empire_city_get(city_id);
+        if (city->type == EMPIRE_CITY_TRADE || city->type == EMPIRE_CITY_FUTURE_TRADE) {
             const uint8_t *city_name = empire_city_get_name(city);
             create_route_info(i, city_name);
         } else {
@@ -148,6 +155,9 @@ static void draw_background(void)
     lang_text_draw(44, 100, 60, 198, FONT_NORMAL_BLACK);
     text_draw_number_centered(data.demand_change.amount, 350, 198, 100, FONT_NORMAL_BLACK);
 
+    translation_key key = data.demand_change.buys ? TR_EDITOR_DEMAND_CHANGE_BUYS : TR_EDITOR_DEMAND_CHANGE_SELLS;
+    lang_text_draw_centered(CUSTOM_TRANSLATION, key, 480, 198, 100, FONT_NORMAL_BLACK);
+
     lang_text_draw_centered_colored(44, 101, 16, 244, 250, FONT_NORMAL_PLAIN,
         data.is_new_demand_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
@@ -164,7 +174,7 @@ static void draw_foreground(void)
 
     for (size_t i = 0; i < NUM_BUTTONS; i++) {
         int focus = data.focus_button_id == i + 1;
-        if (i == 4 && data.is_new_demand_change) {
+        if (i == 5 && data.is_new_demand_change) {
             focus = 0;
         }
         button_border_draw(buttons[i].x, buttons[i].y, buttons[i].width, buttons[i].height, focus);
@@ -239,6 +249,12 @@ static void set_change_amount(int value)
 static void button_amount(const generic_button *button)
 {
     window_numeric_input_show(0, 0, button, 3, 999, set_change_amount);
+}
+
+static void button_buying(const generic_button *button)
+{
+    data.demand_change.buys = 1 - data.demand_change.buys;
+    window_request_refresh();
 }
 
 static void button_delete(const generic_button *button)

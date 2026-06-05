@@ -28,7 +28,7 @@ enum {
 static struct {
     int current_track;
     int next_check;
-} data = {TRACK_NONE, 0};
+} data = { TRACK_NONE, 0 };
 
 static const char tracks[][32] = {
     "",
@@ -78,6 +78,7 @@ static void play_track(int track)
     }
     data.current_track = track;
 }
+
 static void play_randomised_track(int track)
 {
     const char *filename = dir_get_file(mp3_tracks[track], NOT_LOCALIZED);
@@ -103,11 +104,30 @@ void sound_music_play_editor(void)
     }
 }
 
+void sound_music_next_track(void)
+{
+    int randomise = config_get(CONFIG_GENERAL_ENABLE_MUSIC_RANDOMISE);
+    if (!setting_sound(SOUND_TYPE_MUSIC)->enabled || !randomise) {
+        return;
+    }
+
+    int track = data.current_track;
+    while (track == data.current_track) {
+        int range = TRACK_RANDOM_MAX - TRACK_RANDOM_MIN + 1;
+        track = TRACK_CITY_1 + (rand() % range);
+        if (track != data.current_track) {
+            break;
+        }
+    }
+    sound_music_stop();
+    play_randomised_track(track);
+    return;
+}
+
 void sound_music_update(int force)
 {
     int randomise = config_get(CONFIG_GENERAL_ENABLE_MUSIC_RANDOMISE);
     if (sound_device_resume_music()) {
-    
         data.next_check = 10;
         return;
     }
@@ -119,7 +139,6 @@ void sound_music_update(int force)
     if (!setting_sound(SOUND_TYPE_MUSIC)->enabled) {
         return;
     }
-
 
     int track;
     int population = city_population();
@@ -152,11 +171,8 @@ void sound_music_update(int force)
     }
 
     // Case 2: both tracks are in randomised pool — don't switch
-    if (randomise &&
-        track >= TRACK_RANDOM_MIN && track <= TRACK_RANDOM_MAX &&
-        data.current_track >= TRACK_RANDOM_MIN && data.current_track <= TRACK_RANDOM_MAX)
-    {
-        data.next_check = 10;
+    if (randomise && track >= TRACK_RANDOM_MIN && track <= TRACK_RANDOM_MAX &&
+        data.current_track >= TRACK_RANDOM_MIN && data.current_track <= TRACK_RANDOM_MAX) {
         return;
     }
 
@@ -165,18 +181,21 @@ void sound_music_update(int force)
     } else {
         play_track(track);
     }
-    
+
     data.next_check = 10;
 }
+
 void sound_music_pause(void)
 {
     sound_device_pause_music();
 }
+
 void sound_music_resume(void)
 {
     sound_device_resume_music();
     data.next_check = 10;
-}        
+}
+
 void sound_music_stop(void)
 {
     sound_device_stop_music();

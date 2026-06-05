@@ -15,6 +15,7 @@
 #include "building/storage.h"
 #include "building/variant.h"
 #include "city/buildings.h"
+#include "city/finance.h"
 #include "city/view.h"
 #include "city/warning.h"
 #include "core/config.h"
@@ -23,15 +24,59 @@
 #include "empire/city.h"
 #include "figure/formation_legion.h"
 #include "game/undo.h"
+#include "map/building.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
+#include "map/image.h"
 #include "map/orientation.h"
+#include "map/random.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "map/water.h"
 #include "scenario/property.h"
+
+#define AUTO_CLEAR_COST_PER_TILE 3
+
+static struct {
+    int pending;
+    int min_x;
+    int min_y;
+    int max_x;
+    int max_y;
+} auto_clear_state;
+
+// Accumulator for the cost-preview tooltip. Bumped by auto_clear_vegetation_at
+// and auto_clear_for_building during measure-only previews, zeroed by
+// dry_run_vegetation_reset between passes.
+static int dry_run_vegetation_cost_total;
+
+static void track_auto_clear_at(int grid_offset)
+{
+    int x = map_grid_offset_to_x(grid_offset);
+    int y = map_grid_offset_to_y(grid_offset);
+    if (!auto_clear_state.pending) {
+        auto_clear_state.min_x = auto_clear_state.max_x = x;
+        auto_clear_state.min_y = auto_clear_state.max_y = y;
+        auto_clear_state.pending = 1;
+    } else {
+        if (x < auto_clear_state.min_x) auto_clear_state.min_x = x;
+        if (x > auto_clear_state.max_x) auto_clear_state.max_x = x;
+        if (y < auto_clear_state.min_y) auto_clear_state.min_y = y;
+        if (y > auto_clear_state.max_y) auto_clear_state.max_y = y;
+    }
+}
+
+// Set the undo image backup for this tile to grass. The live image will be
+// overwritten by the subsequent placement (road, building, etc.), but the
+// backup keeps grass so that an undo restores grass — not a tree image and not
+// the just-placed road/building image.
+static void set_cleared_tile_backup_to_grass(int grid_offset)
+{
+    int grass_image = image_group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
+    map_image_set_with_backup(grid_offset, grass_image);
+}
 
 
 static void add_fort(int type, building *fort)
@@ -54,19 +99,166 @@ static void add_fort(int type, building *fort)
     const int offsets_x[] = { 3, -1, -4, 0 };
     const int offsets_y[] = { -1, -4, 0, 3 };
     int id = fort->id;
-    building *ground = building_create(BUILDING_FORT_GROUND, fort->x + offsets_x[building_rotation_get_rotation()], fort->y + offsets_y[building_rotation_get_rotation()]);
+    building *ground = building_create(BUILDING_FORT_GROUND, fort->x + offsets_x[building_rotation_get_rotation()],
+        fort->y + offsets_y[building_rotation_get_rotation()]);
     game_undo_add_building(ground);
     fort = building_get(id);
     ground->prev_part_building_id = fort->id;
     fort->next_part_building_id = ground->id;
     ground->next_part_building_id = 0;
-    map_building_tiles_add(ground->id, fort->x + offsets_x[building_rotation_get_rotation()], fort->y + offsets_y[building_rotation_get_rotation()], 4,
-        image_group(GROUP_BUILDING_FORT) + 1, TERRAIN_BUILDING);
+    map_building_tiles_add(ground->id, fort->x + offsets_x[building_rotation_get_rotation()],
+     fort->y + offsets_y[building_rotation_get_rotation()], 4, image_group(GROUP_BUILDING_FORT) + 1, TERRAIN_BUILDING);
 
     fort->formation_id = formation_legion_create_for_fort(fort);
     ground->formation_id = fort->formation_id;
 }
 
+int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost)
+{
+    int total_cost = 0;
+    for (int i = 0; i < grid_slice->size; i++) {
+        int g_offset = grid_slice->grid_offsets[i];
+        int terrain_mask_to_remove = 0;
+        switch (clear_mode) { //ugly but efficient
+            case CLEAR_MODE_FORCE:
+                terrain_mask_to_remove = TERRAIN_NOT_CLEAR;
+                break;
+            case CLEAR_MODE_RUBBLE:
+                terrain_mask_to_remove = TERRAIN_RUBBLE;
+                break;
+            case CLEAR_MODE_TREES:
+                terrain_mask_to_remove = TERRAIN_TREE | TERRAIN_SHRUB;
+                break;
+            case CLEAR_MODE_PLAYER:
+            default:
+                terrain_mask_to_remove = TERRAIN_CLEARABLE;
+                break;
+        }
+        if (map_terrain_is(g_offset, terrain_mask_to_remove)) {
+            total_cost += (cost == COST_FREE) ? 0 : 3; // base cost per tile is 50% more than regular clear
+            if (cost != COST_MEASURE) {
+                // Auto-clear of vegetation persists through undo (preview restore + user undo).
+                // Other clear modes (clear-land tool, rubble, force) keep normal restore-on-undo.
+                if (clear_mode == CLEAR_MODE_TREES) {
+                    map_terrain_remove_with_backup(g_offset, terrain_mask_to_remove);
+                    track_auto_clear_at(g_offset);
+                    set_cleared_tile_backup_to_grass(g_offset);
+                } else {
+                    map_terrain_remove(g_offset, terrain_mask_to_remove);
+                }
+            }
+        }
+    }
+    if (cost == COST_PROCESS && total_cost > 0) {
+        city_finance_process_construction(total_cost);
+    }
+    return total_cost;
+}
+
+int building_construction_auto_clear_vegetation_at(int grid_offset, int measure_only)
+{
+    if (!config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES)) {
+        return 0;
+    }
+    int vegetation = map_terrain_get(grid_offset) & (TERRAIN_TREE | TERRAIN_SHRUB);
+    if (!vegetation) {
+        return 0;
+    }
+    if (measure_only) {
+        dry_run_vegetation_cost_total += AUTO_CLEAR_COST_PER_TILE;
+        return AUTO_CLEAR_COST_PER_TILE;
+    }
+    map_terrain_remove_with_backup(grid_offset, vegetation);
+    track_auto_clear_at(grid_offset);
+    set_cleared_tile_backup_to_grass(grid_offset);
+    city_finance_process_construction(AUTO_CLEAR_COST_PER_TILE);
+    return AUTO_CLEAR_COST_PER_TILE;
+}
+
+int building_construction_auto_clear_for_building(building_type type, int x_tl, int y_tl,
+    int measure_only)
+{
+    if (!config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES)) {
+        return 0;
+    }
+    int size = building_properties_for_type(type)->size;
+    if (type == BUILDING_WAREHOUSE) {
+        // Mirror place_building's size override so the preview matches placement.
+        size = 3;
+    }
+    cost_calculation mode = measure_only ? COST_MEASURE : COST_PROCESS;
+    int total = 0;
+
+    grid_slice *footprint = map_grid_get_grid_slice_square(map_grid_offset(x_tl, y_tl), size);
+    total += building_construction_prepare_terrain(footprint, CLEAR_MODE_TREES, mode);
+
+    if (building_is_fort(type)) {
+        const int offsets_x[] = { 3, -1, -4, 0 };
+        const int offsets_y[] = { -1, -4, 0, 3 };
+        int orient_index = building_rotation_get_rotation();
+        grid_slice *ground = map_grid_get_grid_slice_square(
+            map_grid_offset(x_tl + offsets_x[orient_index], y_tl + offsets_y[orient_index]), 4);
+        total += building_construction_prepare_terrain(ground, CLEAR_MODE_TREES, mode);
+    } else if (type == BUILDING_HIPPODROME) {
+        int x_offset_1, y_offset_1;
+        building_rotation_get_offset_with_rotation(5, building_rotation_get_rotation(), &x_offset_1, &y_offset_1);
+        int x_offset_2, y_offset_2;
+        building_rotation_get_offset_with_rotation(10, building_rotation_get_rotation(), &x_offset_2, &y_offset_2);
+        grid_slice *part2 = map_grid_get_grid_slice_square(
+            map_grid_offset(x_tl + x_offset_1, y_tl + y_offset_1), 5);
+        total += building_construction_prepare_terrain(part2, CLEAR_MODE_TREES, mode);
+        grid_slice *part3 = map_grid_get_grid_slice_square(
+            map_grid_offset(x_tl + x_offset_2, y_tl + y_offset_2), 5);
+        total += building_construction_prepare_terrain(part3, CLEAR_MODE_TREES, mode);
+    }
+
+    if (measure_only) {
+        dry_run_vegetation_cost_total += total;
+    }
+    return total;
+}
+
+void building_construction_dry_run_vegetation_reset(void)
+{
+    dry_run_vegetation_cost_total = 0;
+}
+
+int building_construction_dry_run_vegetation_cost(void)
+{
+    return dry_run_vegetation_cost_total;
+}
+
+void building_construction_auto_clear_finalize(void)
+{
+    if (auto_clear_state.pending) {
+        // Refresh live images for tiles that ended up still clear (e.g. cleared
+        // but not placed-on, like a failed fort or area gaps). Tiles that got
+        // built on stay with their placement image. The per-tile backup image
+        // was already pinned to grass when each tile was cleared, so undo
+        // restores grass instead of the original tree image (or the just-placed
+        // road/building image).
+        map_tiles_update_region_empty_land(
+            auto_clear_state.min_x, auto_clear_state.min_y,
+            auto_clear_state.max_x, auto_clear_state.max_y);
+        map_routing_update_land();
+        auto_clear_state.pending = 0;
+    }
+}
+
+static int check_gatehouse_tiles(int grid_offset)
+{
+    grid_slice *slice = map_grid_get_grid_slice_square(grid_offset, 2);
+    for (int i = 0; i < slice->size; i++) {
+        if (map_terrain_is(slice->grid_offsets[i], TERRAIN_BUILDING)) {
+            if (map_terrain_is(slice->grid_offsets[i], TERRAIN_WALL)) {
+                continue;
+            } else {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
 
 static void add_hippodrome(building *b)
 {
@@ -101,33 +293,42 @@ static int add_warehouse_space(int x, int y, int prev_id)
     return b->id;
 }
 
-static void add_warehouse(building *b)
+static void add_warehouse(building *b, int orientation)
 {
-    int x_offset[9] = { 0, 0, 1, 1, 0, 2, 1, 2, 2 };
-    int y_offset[9] = { 0, 1, 0, 1, 2, 0, 2, 1, 2 };
-    int corner = building_rotation_get_corner(2 * building_rotation_get_rotation());
-
     b->storage_id = building_storage_create(b->id);
     b->prev_part_building_id = 0;
-    map_building_tiles_add(b->id, b->x + x_offset[corner], b->y + y_offset[corner], 1,
+    // assert orientation. orientation points to the tower's location (0-3), out of 4 possible corners
+    b->subtype.orientation = orientation;
+
+    int x_offset[9] = { 0, 0, 1, 1, 0, 2, 1, 2, 2 };
+    int y_offset[9] = { 0, 1, 0, 1, 2, 0, 2, 1, 2 };
+    // can skip  building_rotation_get_rotation(), set upstream
+    int tower = building_rotation_get_corner(2 * orientation);
+    map_building_tiles_add(b->id, b->x + x_offset[tower], b->y + y_offset[tower], 1,
         image_group(GROUP_BUILDING_WAREHOUSE), TERRAIN_BUILDING);
-    map_tiles_update_area_roads(b->x + x_offset[corner], b->y + y_offset[corner], 3);
+    map_tiles_update_area_roads(b->x + x_offset[tower], b->y + y_offset[tower], 3);
+
     int id = b->id;
     int prev = id;
     for (int i = 0; i < 9; i++) {
-        if (i == corner) {
+        if (i == tower) {
             continue;
         }
         prev = add_warehouse_space(b->x + x_offset[i], b->y + y_offset[i], prev);
     }
+
     b = building_get(id);
-    // adjust BUILDING_WAREHOUSE
-    b->x = b->x + x_offset[corner];
-    b->y = b->y + y_offset[corner];
+    // Adjust BUILDING_WAREHOUSE to tower position
+    b->x = b->x + x_offset[tower];
+    b->y = b->y + y_offset[tower];
     b->grid_offset = map_grid_offset(b->x, b->y);
     game_undo_adjust_building(b);
 
     building_get(prev)->next_part_building_id = 0;
+    map_tiles_update_area_roads(b->x, b->y, 5);
+    if (!map_has_road_access_warehouse(b->x, b->y, 0)) {
+        city_warning_show(WARNING_WAREHOUSE_TOWER, NEW_WARNING_SLOT);
+    }
 }
 
 static void add_building(building *b)
@@ -148,6 +349,7 @@ static void add_granary(building *b)
 {
     b->storage_id = building_storage_create(b->id);
     add_building(b);
+    map_update_granary_internal_roads(b);
     map_tiles_update_area_roads(b->x, b->y, 5);
 }
 
@@ -234,6 +436,7 @@ static void add_to_map(int type, building *b, int size, int orientation, int wat
             break;
         case BUILDING_TRIUMPHAL_ARCH:
             b->subtype.orientation = orientation;
+            building_monument_set_phase(b, MONUMENT_START);
             add_building(b);
             map_orientation_update_buildings();
             map_terrain_add_triumphal_arch_roads(b->x, b->y, orientation);
@@ -244,7 +447,7 @@ static void add_to_map(int type, building *b, int size, int orientation, int wat
             building_construction_clear_type();
             break;
         case BUILDING_WAREHOUSE:
-            add_warehouse(b);
+            add_warehouse(b, orientation);
             break;
         case BUILDING_HIPPODROME:
             add_hippodrome(b);
@@ -276,6 +479,11 @@ static void add_to_map(int type, building *b, int size, int orientation, int wat
             break;
         case BUILDING_MESS_HALL:
             b->data.market.is_mess_hall = 1;
+            add_building(b);
+            break;
+        case BUILDING_HIGHWAY_STATION:
+            b->accepted_goods[RESOURCE_STONE] = 1;
+            b->accepted_goods[RESOURCE_SAND] = 1;
             add_building(b);
             break;
         case BUILDING_SMALL_STATUE:
@@ -342,23 +550,45 @@ int building_construction_is_warehouse_corner(int tile_no)
     return tile_no == corner;
 }
 
-int building_construction_place_building(building_type type, int x, int y)
+int building_construction_fill_vacant_lots(grid_slice *area)
 {
+    int items_placed = 0;
+    for (int i = 0; i < area->size; i++) {
+        int grid_offset = area->grid_offsets[i];
+        int x = map_grid_offset_to_x(grid_offset);
+        int y = map_grid_offset_to_y(grid_offset);
+        int success = building_construction_place_building(BUILDING_HOUSE_VACANT_LOT, x, y, 1);
+        if (!success) {
+            continue;
+        }
+        building *b = building_get(map_building_at(grid_offset));
+        game_undo_add_building(b);
+        items_placed++;
+    }
+    if (items_placed > 0) {
+        building_construction_warning_check_food_stocks(BUILDING_HOUSE_VACANT_LOT);
+        map_routing_update_land();
+    }
+    return items_placed;
+}
+
+int building_construction_place_building(building_type type, int x, int y, int exact_coordinates)
+{
+    int grid_offset = map_grid_offset(x, y);
+
     int terrain_mask = TERRAIN_ALL;
-    if (building_type_is_roadblock(type)) {
-        terrain_mask = type == BUILDING_GATEHOUSE ? ~TERRAIN_WALL & ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY : ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY;
+    if ((building_type_is_roadblock(type) && !(type == BUILDING_GRANARY || type == BUILDING_WAREHOUSE)) ||
+        (config_get(CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT) &&
+        (type == BUILDING_GRANARY || type == BUILDING_WAREHOUSE))) {
+        terrain_mask = type == BUILDING_GATEHOUSE ? ~TERRAIN_WALL & ~TERRAIN_ROAD &
+            ~TERRAIN_HIGHWAY & ~TERRAIN_BUILDING : ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY;
         //allow building gatehouses over walls and roads, other non-bridge roadblocks over roads and highways
     } else if (type == BUILDING_TOWER) {
-        terrain_mask = ~TERRAIN_WALL;
+        terrain_mask = ~TERRAIN_WALL & ~TERRAIN_BUILDING;
     } else if (type == BUILDING_RESERVOIR || type == BUILDING_DRAGGABLE_RESERVOIR) {
         terrain_mask = ~TERRAIN_AQUEDUCT;
     }
-    if (config_get(CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT)) {
-        if (type == BUILDING_GRANARY || type == BUILDING_WAREHOUSE) {
-            terrain_mask = ~TERRAIN_ROAD;
-        }
-    }
-    //allow building granaries and warehouses over all road, BUT, 
+    //allow building granaries and warehouses over all road, BUT,
     //the building ghost is set up to SUGGEST placing it over crossroads only
 
     int size = building_properties_for_type(type)->size;
@@ -366,17 +596,63 @@ int building_construction_place_building(building_type type, int x, int y)
         size = 3;
     }
     // Do not check for a figure when build a roadblock of single tile size
+    // TODO: do not check for figures on tiles that are citizen passable in general
     int check_figure = type == BUILDING_ROADBLOCK && size == 1 ? 0 : 1;
     int building_orientation = 0;
-    if (type == BUILDING_GATEHOUSE) {
-        building_orientation = map_orientation_for_gatehouse(x, y);
+    if (type == BUILDING_GATEHOUSE || type == BUILDING_WAREHOUSE) {
+        //check if there's a preset orientation from old building
+        building *old_b = building_main(building_get(map_building_rubble_building_id(grid_offset)));
+        if (old_b && (old_b->type == BUILDING_GATEHOUSE ||
+            old_b->type == BUILDING_WAREHOUSE || old_b->type == BUILDING_WAREHOUSE_SPACE)) {
+            building_orientation = old_b->subtype.orientation;
+        } else if (type == BUILDING_GATEHOUSE) {
+            building_orientation = map_orientation_for_gatehouse(x, y);
+        } else if (type == BUILDING_WAREHOUSE) {
+            building_orientation = building_rotation_get_rotation();
+        }
     } else if (type == BUILDING_TRIUMPHAL_ARCH) {
         building_orientation = map_orientation_for_triumphal_arch(x, y);
     }
-    building_construction_offset_start_from_orientation(&x, &y, size);
+    if (!exact_coordinates) {
+        building_construction_offset_start_from_orientation(&x, &y, size);
+    }
+    // Hide vegetation from the placement-validation checks below; if all checks
+    // succeed we'll auto-clear the actual footprint just before creating the
+    // building. This way a click that fails for some other reason (formation
+    // count, monument exists, no mess hall, ...) doesn't burn the trees.
+    int auto_clear_for_placement = !exact_coordinates && config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES);
+    if (auto_clear_for_placement) {
+        terrain_mask &= ~TERRAIN_TREE & ~TERRAIN_SHRUB;
+    }
     // extra checks
+    if (type == BUILDING_RESERVOIR || type == BUILDING_DRAGGABLE_RESERVOIR) {
+        if (map_terrain_exists_tile_in_area_with_type(x, y, size, TERRAIN_BUILDING & ~TERRAIN_AQUEDUCT)) {
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
+            return 0;
+        }
+    }
+    if (type == BUILDING_TOWER) {
+        if (!map_terrain_all_tiles_in_radius_are(x, y, size, 0, TERRAIN_WALL)) {
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
+            return 0;
+        }
+        if (!map_terrain_all_tiles_in_radius_are(x, y, 2, 0, TERRAIN_BUILDING)) {
+            city_warning_show(WARNING_WALL_NEEDED, NEW_WARNING_SLOT);
+            return 0;
+        }
+        if (!building_orientation) {
+            building_orientation = building_rotation_get_rotation() + 1;
+            if (building_orientation > 4) {
+                building_orientation = 1;
+            }
+        }
+    }
     if (type == BUILDING_GATEHOUSE) {
         if (!map_tiles_are_clear(x, y, size, terrain_mask, check_figure)) {
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
+            return 0;
+        }
+        if (!check_gatehouse_tiles(grid_offset)) { //helper to make sure all building tiles are on walls
             city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
             return 0;
         }
@@ -435,7 +711,7 @@ int building_construction_place_building(building_type type, int x, int y)
         int orient_index = building_rotation_get_rotation();
         int x_offset = offsets_x[orient_index];
         int y_offset = offsets_y[orient_index];
-        if (!map_tiles_are_clear(x + x_offset, y + y_offset, 4, terrain_mask, check_figure)) {
+        if (!map_tiles_are_clear(x + x_offset, y + y_offset, 4, terrain_mask, 0)) { // ignore figures on fort grounds
             city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
             return 0;
         }
@@ -500,6 +776,17 @@ int building_construction_place_building(building_type type, int x, int y)
             return 0;
         }
     }
+    if (type == BUILDING_HIGHWAY_STATION) {
+        if (city_buildings_has_highway_station()) {
+            city_warning_show(WARNING_ONE_BUILDING_OF_TYPE, NEW_WARNING_SLOT);
+            return 0;
+        }
+        if (!city_buildings_has_workcamp()) {
+            city_warning_show(WARNING_WORKCAMP_NEEDED, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_BUILD_WORKCAMP, NEW_WARNING_SLOT);
+            return 0;
+        }
+    }
     if (type == BUILDING_LIGHTHOUSE && city_buildings_has_lighthouse()) {
         city_warning_show(WARNING_ONE_BUILDING_OF_TYPE, NEW_WARNING_SLOT);
         return 0;
@@ -520,12 +807,16 @@ int building_construction_place_building(building_type type, int x, int y)
 
 
     // phew, checks done!
-    building *b;
-    if (building_is_fort(type)) {
-        b = building_create(BUILDING_FORT, x, y);
-    } else {
-        b = building_create(type, x, y);
+    // All placement-validation has passed, so it's safe to actually clear the
+    // vegetation underneath the building footprint(s) — for failures above we
+    // never get here and the trees are left untouched.
+    if (auto_clear_for_placement) {
+        building_construction_auto_clear_for_building(type, x, y, 0);
     }
+
+    building *b;
+    b = building_create(type, x, y);
+
     game_undo_add_building(b);
     if (b->id <= 0) {
         return 0;

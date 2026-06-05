@@ -5,6 +5,7 @@
 #include "building/maintenance.h"
 #include "building/menu.h"
 #include "building/monument.h"
+#include "building/state.h"
 #include "building/storage.h"
 #include "city/data.h"
 #include "city/emperor.h"
@@ -153,6 +154,7 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     map_tiles_add_entry_exit_flags();
     map_tiles_update_all_empty_land();
     map_tiles_update_all_meadow();
+    map_tiles_update_all_rubble();
     map_tiles_update_all_roads();
     map_tiles_update_all_highways();
     map_tiles_update_all_plazas();
@@ -301,6 +303,8 @@ static void initialize_saved_game(void)
     image_load_enemy(scenario_property_enemy());
     city_military_determine_distant_battle_city();
 
+    migrate_altar_rotations(); // this has to go after all image loading since it migrates data from image_ids
+
     map_natives_check_land(0);
 
     city_message_clear_scroll();
@@ -323,10 +327,10 @@ static int start_scenario(const uint8_t *scenario_name, const char *scenario_fil
         return 0;
     }
     if (!load_custom_scenario(scenario_name, full_scenario_file)) {
+        uint8_t scenario_mapx_name[FILE_NAME_MAX];
+        string_copy(scenario_name, scenario_mapx_name, FILE_NAME_MAX);
         if (game_file_load_saved_game(full_scenario_file) == FILE_LOAD_SUCCESS) {
             is_save_game = 1;
-            uint8_t scenario_mapx_name[FILE_NAME_MAX];
-            string_copy(scenario_name, scenario_mapx_name, FILE_NAME_MAX);
             scenario_set_name(scenario_mapx_name);
         } else {
             return 0;
@@ -478,11 +482,13 @@ int game_file_make_yearly_autosave(void)
         next_autosave_slot, ".svx");
 
     platform_file_manager_copy_file(current_save_name, backup_save_name);
-    game_file_write_saved_game(current_save_name);
+    int result = game_file_write_saved_game(current_save_name);
 
     next_autosave_slot++;
-    config_set(CONFIG_GENERAL_NEXT_AUTOSAVE_SLOT,next_autosave_slot);
+    config_set(CONFIG_GENERAL_NEXT_AUTOSAVE_SLOT, next_autosave_slot);
     config_save();
+
+    return result;
 }
 
 int game_file_delete_saved_game(const char *filename)

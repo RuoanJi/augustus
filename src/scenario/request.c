@@ -44,7 +44,7 @@ static void make_request_visible_and_send_message(scenario_request *request)
 {
     request->visible = 1;
     request->amount.requested = random_between_from_stdlib(request->amount.min, request->amount.max);
-    if (city_resource_count(request->resource) >= request->amount.requested) {
+    if (city_resource_count_warehouses_amount(request->resource) >= (int) request->amount.requested) {
         request->can_comply_dialog_shown = 1;
     }
     int requested = request->amount.requested;
@@ -55,6 +55,22 @@ static void make_request_visible_and_send_message(scenario_request *request)
     } else {
         city_message_post(1, MESSAGE_CAESAR_REQUESTS_GOODS, request->id, requested);
     }
+}
+
+int scenario_request_can_comply(int id)
+{
+    scenario_request *request = array_item(requests, id);
+    if (!request) {
+        return 0;
+    }
+    if (request->state != REQUEST_STATE_NORMAL && request->state != REQUEST_STATE_OVERDUE) {
+        return 0;
+    }
+    if (!request->visible) {
+        return 0;
+    }
+    int amount = city_resource_get_amount_for_request(request->resource, request->amount.requested);
+    return amount >= (int) request->amount.requested;
 }
 
 void scenario_request_clear_all(void)
@@ -99,6 +115,18 @@ static void schedule_request_again(scenario_request *request)
     request->amount.requested = 0;
     if (request->repeat.times > 0) {
         request->repeat.times--;
+    }
+}
+
+void scenario_request_show_ready_message(scenario_request *request)
+{
+    if (!request->can_comply_dialog_shown) {
+        resource_type resource = request->resource;
+        int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
+        if (resource_amount >= (int) request->amount.requested) {
+            request->can_comply_dialog_shown = 1;
+            city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
+        }
     }
 }
 
@@ -150,11 +178,8 @@ static void process_request(scenario_request *request)
         }
         if (!request->can_comply_dialog_shown) {
             resource_type resource = request->resource;
-            int resource_amount = building_warehouses_count_available_resource(resource, 1);
-            if (resource_is_food(resource)) {
-                resource_amount += building_granaries_count_available_resource(resource, 1);
-            }
-            if (resource_amount >= request->amount.requested) {
+            int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
+            if (resource_amount >= (int) request->amount.requested) {
                 request->can_comply_dialog_shown = 1;
                 city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
             }
@@ -188,6 +213,7 @@ void scenario_request_dispatch(int id)
     }
     request->months_to_comply = (random_byte() & 3) + 1;
     request->visible = 0;
+    request->can_comply_dialog_shown = 1;
     int amount = request->amount.requested;
     if (request->resource == RESOURCE_DENARII) {
         city_finance_process_sundry(amount);
@@ -224,21 +250,23 @@ void scenario_request_delete(int id)
 void scenario_request_remap_resource(void)
 {
     scenario_request *request;
-    array_foreach(requests, request) {
+    array_foreach(requests, request)
+    {
         request->resource = resource_remap(request->resource);
     }
 }
 
-int scenario_request_count_total(void)
+unsigned int scenario_request_count_total(void)
 {
     return requests.size;
 }
 
-int scenario_request_count_active(void)
+unsigned int scenario_request_count_active(void)
 {
     int num_requests = 0;
     const scenario_request *request;
-    array_foreach(requests, request) {
+    array_foreach(requests, request)
+    {
         if (request->resource) {
             num_requests++;
         }
@@ -250,7 +278,8 @@ int scenario_request_count_visible(void)
 {
     int count = 0;
     const scenario_request *request;
-    array_foreach(requests, request) {
+    array_foreach(requests, request)
+    {
         if (request->resource && request->visible) {
             count++;
         }
@@ -262,7 +291,8 @@ int scenario_request_foreach_visible(int start_index, void (*callback)(int index
 {
     int index = start_index;
     const scenario_request *request;
-    array_foreach(requests, request) {
+    array_foreach(requests, request)
+    {
         if (request->resource && request->visible) {
             callback(index, scenario_request_get(request->id));
             index++;
@@ -274,7 +304,8 @@ int scenario_request_foreach_visible(int start_index, void (*callback)(int index
 const scenario_request *scenario_request_get_visible(int index)
 {
     const scenario_request *request;
-    array_foreach(requests, request) {
+    array_foreach(requests, request)
+    {
         if (request->resource && request->visible && request->state <= 1) {
             if (index == 0) {
                 return scenario_request_get(request->id);
@@ -287,7 +318,7 @@ const scenario_request *scenario_request_get_visible(int index)
 
 int scenario_request_is_ongoing(int id)
 {
-    if (id < 0 || id >= requests.size) {
+    if (id < 0 || (unsigned int) id >= requests.size) {
         return 0;
     }
 
@@ -316,7 +347,7 @@ int scenario_request_is_ongoing(int id)
 
 int scenario_request_force_start(int id)
 {
-    if (id < 0 || id >= requests.size) {
+    if (id < 0 || (unsigned int) id >= requests.size) {
         return 0;
     }
 
@@ -418,14 +449,14 @@ static void request_load(buffer *list, scenario_request *request, int version)
 
 void scenario_request_load_state(buffer *list, int version)
 {
-    unsigned int array_size = buffer_load_dynamic_array(list);
+    size_t array_size = buffer_load_dynamic_array(list);
 
     if (!array_init(requests, REQUESTS_ARRAY_SIZE_STEP, new_request, request_in_use) ||
-        !array_expand(requests, array_size)) {
+        !array_expand(requests, (unsigned int) array_size)) {
         log_error("Error creating requests array. The game will probably crash.", 0, 0);
     }
 
-    for (unsigned int i = 0; i < array_size; i++) {
+    for (size_t i = 0; i < array_size; i++) {
         scenario_request *request = array_next(requests);
         request_load(list, request, version);
     }

@@ -14,13 +14,12 @@ void platform_screen_set_fullscreen(void);
 void platform_screen_set_windowed(void);
 void platform_screen_set_window_size(int logical_width, int logical_height);
 void platform_screen_center_window(void);
+void platform_screen_update_window_grab(void);
 
 #ifdef _WIN32
 void platform_screen_recreate_texture(void);
 #endif
 
 int platform_screen_get_scale(void);
-
-void platform_screen_show_error_message_box(const char *title, const char *message);
 
 #endif // PLATFORM_SCREEN_H

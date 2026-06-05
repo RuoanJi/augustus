@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/construction.h"
+#include "building/properties.h"
 #include "city/constants.h"
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -22,12 +23,14 @@
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/menu.h"
+#include "graphics/panel.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/criteria.h"
+#include "scenario/event/controller.h"
 #include "scenario/property.h"
-#include "widget/city.h"
+#include "widget/city/city.h"
 #include "window/advisors.h"
 #include "window/advisor/health.h"
 #include "window/city.h"
@@ -58,10 +61,6 @@ typedef enum {
     WIDGET_LAYOUT_BASIC = 1,   // treasury, population, date
     WIDGET_LAYOUT_FULL = 2    // + ratings and savings
 } widget_layout_case_t;
-
-#define BLACK_PANEL_BLOCK_WIDTH 20
-#define BLACK_PANEL_MIDDLE_BLOCKS 4
-#define BLACK_PANEL_TOTAL_BLOCKS 6
 
 #define PANEL_MARGIN 10
 #define DATE_FIELD_WIDTH 140
@@ -270,39 +269,6 @@ static void refresh_background(void)
     }
 }
 
-static int draw_black_panel(int x, int y, int width)
-{
-    if (width < BLACK_PANEL_BLOCK_WIDTH * BLACK_PANEL_TOTAL_BLOCKS) {
-        width = BLACK_PANEL_BLOCK_WIDTH * BLACK_PANEL_TOTAL_BLOCKS;  // enforce minimum panel size
-    }
-
-    int blocks = ((width + BLACK_PANEL_BLOCK_WIDTH - 1) / BLACK_PANEL_BLOCK_WIDTH) - 2;
-    int actual_width = (blocks + 2) * BLACK_PANEL_BLOCK_WIDTH;
-
-    // Step 1: Draw start cap
-    image_draw(image_group(GROUP_TOP_MENU) + 14, x, y, COLOR_MASK_NONE, SCALE_NONE);
-    x += BLACK_PANEL_BLOCK_WIDTH;
-
-    // Step 2: Load base panel images
-    static int black_panel_base_id;
-    if (!black_panel_base_id) {
-        black_panel_base_id = assets_get_image_id("UI", "Top_UI_Panel");
-    }
-
-    // Step 3: Draw middle blocks
-    for (int i = 0; i < blocks; i++) {
-        image_draw(black_panel_base_id + (i % BLACK_PANEL_MIDDLE_BLOCKS) + 1, x, y,
-            COLOR_MASK_NONE, SCALE_NONE);
-        x += BLACK_PANEL_BLOCK_WIDTH;
-    }
-
-    // Step 4: Draw end cap
-    image_draw(black_panel_base_id + 5, x, y, COLOR_MASK_NONE, SCALE_NONE);
-
-    return actual_width;
-}
-
-
 static int get_black_panel_actual_width(int desired_width)
 {
     int blocks = (desired_width / BLACK_PANEL_BLOCK_WIDTH) - 1;
@@ -477,7 +443,7 @@ static int draw_panel_with_text_and_number(int offset, int lang_section, int lan
     // Compute required usable width + total panel width (adds end caps)
     int black_panel_width = (fixed_width > 0) ? fixed_width : text_width;
 
-    int panel_width = draw_black_panel(offset, 0, black_panel_width);
+    int panel_width = top_menu_black_panel_draw(offset, 0, black_panel_width);
     int end_of_panel = offset + panel_width;
     int usable_width = end_of_panel - offset - 2 * BLACK_PANEL_BLOCK_WIDTH;
     int draw_x = offset + BLACK_PANEL_BLOCK_WIDTH + (usable_width / 2) - text_width / 2;
@@ -543,7 +509,7 @@ static int draw_health_panel(int offset, int box_width, font_t font)
 
     // center it in the box
     int x = offset + (box_width - health_w) / 2;
-    text_draw_number(health, ' ', "", x, 5, font, color);
+    text_draw_number(health, ' ', "", x + 10, 5, font, color);
 
     return box_width;
 }
@@ -660,7 +626,7 @@ void widget_top_menu_draw(int force)
          pop_color, pop_color);
         // --- Draw Date ---
         int date_x = data.date.start;
-        draw_black_panel(date_x, 0, DATE_FIELD_WIDTH + data.extra_space);
+        top_menu_black_panel_draw(date_x, 0, DATE_FIELD_WIDTH + data.extra_space);
         int month_offset = date_x + data.extra_space / 2 + BLACK_PANEL_BLOCK_WIDTH + 14; // 14px is enough for day
         text_draw_number(get_cosmetic_day_of_month(), 0, "", date_x + PANEL_MARGIN + data.extra_space / 2, 5, font,
          date_color);
@@ -685,7 +651,7 @@ void widget_top_menu_draw(int force)
         int x = data.ratings.start;
 
 
-        draw_black_panel(x, 0, block_w);
+        top_menu_black_panel_draw(x, 0, block_w);
         x += data.extra_space / 2;
         const int rating_ids[] = { INFO_CULTURE, INFO_PROSPERITY, INFO_PEACE, INFO_FAVOR };
         top_menu_tooltip_range *targets[] = { &data.culture, &data.prosperity, &data.peace, &data.favor };
@@ -794,14 +760,17 @@ static int handle_mouse_menu(const mouse *m)
             if (m->left.went_up) {
                 ratings_advisors_go_to(ADVISOR_FINANCIAL);
             }
+            break;
         case INFO_PERSONAL:
             if (m->left.went_up) {
                 ratings_advisors_go_to(ADVISOR_IMPERIAL);
             }
+            break;
         case INFO_POPULATION:
             if (m->left.went_up) {
                 ratings_advisors_go_to(ADVISOR_POPULATION);
             }
+            break;
         case INFO_CULTURE:
         case INFO_PROSPERITY:
         case INFO_PEACE:
@@ -809,10 +778,12 @@ static int handle_mouse_menu(const mouse *m)
             if (m->left.went_up) {
                 ratings_advisors_go_to(ADVISOR_RATINGS);
             }
+            break;
         case INFO_HEALTH:
             if (m->left.went_up) {
                 ratings_advisors_go_to(ADVISOR_HEALTH);
             }
+            break;
     }
     if (menu_id && m->left.went_up) {
         data.open_sub_menu = menu_id;
@@ -858,31 +829,39 @@ int widget_top_menu_get_tooltip_text(tooltip_context *c)
         }
         if (button_id < 4) {
             return 59 + button_id;
-        } else if (button_id == INFO_PERSONAL) {
-            c->text_group = CUSTOM_TRANSLATION;
-            return TR_TOOLTIP_PERSONAL_SAVINGS;
         } else {
             c->text_group = 53;
             c->num_extra_texts = 1;
             c->extra_text_groups[0] = 53;
             switch (button_id) {
                 case INFO_CULTURE:
-                    c->extra_text_ids[0] = (scenario_criteria_culture() <= 90)
+                    c->extra_text_ids[0] = (city_rating_culture() <= 90)
                         ? 9 + city_rating_explanation_for(SELECTED_RATING_CULTURE) : 50;
                     return 1;
-
                 case INFO_PROSPERITY:
-                    c->extra_text_ids[0] = (scenario_criteria_prosperity() <= 90)
+                    c->extra_text_ids[0] = (city_rating_prosperity() <= 90)
                         ? 16 + city_rating_explanation_for(SELECTED_RATING_PROSPERITY) : 51;
                     return 2;
                 case INFO_PEACE:
-                    c->extra_text_ids[0] = (scenario_criteria_peace() <= 90)
+                    c->extra_text_ids[0] = (city_rating_peace() <= 90)
                         ? 41 + city_rating_explanation_for(SELECTED_RATING_PEACE) : 52;
                     return 3;
+                case INFO_PERSONAL:
                 case INFO_FAVOR:
-                    c->extra_text_ids[0] = (scenario_criteria_favor() <= 90)
-                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53;
-                    return 4;
+                {
+                    const uint8_t *original_text = lang_get_string(53, (city_rating_favor() <= 90)
+                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53);
+                    if (button_id == INFO_PERSONAL) {
+                        original_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_PERSONAL_SAVINGS);
+                    }
+                    const uint8_t *gift_text = lang_get_string(52, 50);
+                    int value = city_emperor_months_since_gift();
+                    const uint8_t *months_text = lang_get_string(8, 4 + (value != 1));
+                    static char formatted_text[128];
+                    snprintf(formatted_text, sizeof(formatted_text), "%s\n%s: %d %s", original_text, gift_text, value, months_text);
+                    c->precomposed_text = (const uint8_t *) formatted_text;
+                    return 1;
+                }
                 case INFO_HEALTH:
                     c->text_group = CUSTOM_TRANSLATION;
                     c->extra_text_groups[0] = 56;
@@ -915,6 +894,8 @@ static void replay_map_confirmed(int confirmed, int checked)
         scenario_save_campaign_player_name();
         window_mission_selection_show_again();
     }
+    model_reset();
+    scenario_events_process_all();
 }
 
 static void menu_file_replay_map(int param)
@@ -984,35 +965,35 @@ static void menu_options_general(int param)
 {
     clear_state();
     window_go_back();
-    window_config_show(CONFIG_PAGE_GENERAL, 0);
+    window_config_show(CONFIG_PAGE_GENERAL, 0, 0);
 }
 
 static void menu_options_user_interface(int param)
 {
     clear_state();
     window_go_back();
-    window_config_show(CONFIG_PAGE_UI_CHANGES, 0);
+    window_config_show(CONFIG_PAGE_UI_CHANGES, CATEGORY_UI_GENERAL, 0);
 }
 
 static void menu_options_gameplay(int param)
 {
     clear_state();
     window_go_back();
-    window_config_show(CONFIG_PAGE_GAMEPLAY_CHANGES, 0);
+    window_config_show(CONFIG_PAGE_GAMEPLAY_CHANGES, 0, 0);
 }
 
 static void menu_options_city_management(int param)
 {
     clear_state();
     window_go_back();
-    window_config_show(CONFIG_PAGE_CITY_MANAGEMENT_CHANGES, 0);
+    window_config_show(CONFIG_PAGE_CITY_MANAGEMENT_CHANGES, CATEGORY_CITY_MANAGEMENT_STORAGE, 0);
 }
 
 static void menu_options_hotkeys(int param)
 {
     clear_state();
     window_go_back();
-    window_hotkey_config_show();
+    window_hotkey_config_show(0);
 }
 
 static void menu_options_monthly_autosave(int param)

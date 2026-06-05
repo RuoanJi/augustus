@@ -6,18 +6,12 @@
 #include "core/log.h"
 #include "core/random.h"
 #include "core/string.h"
+#include "platform/prefs.h"
 #include "platform/android/android.h"
 #include "platform/emscripten/emscripten.h"
 #include "platform/file_manager_cache.h"
 #include "platform/platform.h"
-#include "platform/prefs.h"
 #include "platform/vita/vita.h"
-
-#ifndef BUILDING_ASSET_PACKER
-#include "SDL.h"
-#else
-#define SDL_VERSION_ATLEAST(x, y, z) 0
-#endif
 
 #include <dirent.h>
 #include <stdlib.h>
@@ -201,16 +195,12 @@ static char assets_directory[FILE_NAME_MAX];
 
 static int write_base_path_to(char *dest)
 {
-#if !defined(BUILDING_ASSET_PACKER) && SDL_VERSION_ATLEAST(2, 0, 1)
-    if (!platform_sdl_version_at_least(2, 0, 1)) {
-        return 0;
-    }
-    char *base_path = SDL_GetBasePath();
+#if !defined(BUILDING_ASSET_PACKER)
+    const char *base_path = platform_get_base_path();
     if (!base_path) {
         return 0;
     }
     snprintf(dest, FILE_NAME_MAX, "%s", base_path);
-    SDL_free(base_path);
     return 1;
 #else
     return 0;
@@ -236,6 +226,8 @@ static struct {
     const char *editor_custom_empires;
     const char *editor_custom_messages;
     const char *editor_custom_events;
+    const char *editor_model_data;
+    const char *community_image;
 } paths = {
     "",
     "config/",
@@ -247,7 +239,9 @@ static struct {
     "community/",
     "editor/empires/",
     "editor/messages/",
-    "editor/events/"
+    "editor/events/",
+    "editor/model/",
+    "community/image"
 };
 
 static void set_assets_directory(void)
@@ -580,6 +574,12 @@ const char *platform_file_manager_get_directory_for_location(int location, const
             break;
         case PATH_LOCATION_EDITOR_CUSTOM_MESSAGES:
             cursor = snprintf(full_path, FILE_NAME_MAX, "%s%s%s", user_directory, slash, paths.editor_custom_messages);
+            break;
+        case PATH_LOCATION_EDITOR_MODEL_DATA:
+            cursor = snprintf(full_path, FILE_NAME_MAX, "%s%s%s", user_directory, slash, paths.editor_model_data);
+            break;
+        case PATH_LOCATION_COMMUNITY_IMAGE:
+            cursor = snprintf(full_path, FILE_NAME_MAX, "%s%s%s", user_directory, slash, paths.community_image);
             break;
     }
 

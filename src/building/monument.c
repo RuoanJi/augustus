@@ -2,7 +2,6 @@
 
 #include "assets/assets.h"
 #include "building/image.h"
-#include "building/model.h"
 #include "building/properties.h"
 #include "city/finance.h"
 #include "city/message.h"
@@ -155,6 +154,15 @@ static const monument_type city_mint = {
     }
 };
 
+static const monument_type triumphal_arch = {
+    .phases    = 3,
+    .resources = {
+        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 12,  [RESOURCE_TIMBER] = 8},
+        { [ARCHITECTS] = 3, [RESOURCE_MARBLE] = 32, [RESOURCE_BRICKS] = 12 },
+        { NOTHING }
+    }
+};
+
 static const monument_type *MONUMENT_TYPES[BUILDING_TYPE_MAX] = {
     [BUILDING_GRAND_TEMPLE_CERES]   = &grand_temple,
     [BUILDING_GRAND_TEMPLE_NEPTUNE] = &grand_temple,
@@ -175,12 +183,13 @@ static const monument_type *MONUMENT_TYPES[BUILDING_TYPE_MAX] = {
     [BUILDING_LARGE_MAUSOLEUM]      = &large_mausoleum,
     [BUILDING_SMALL_MAUSOLEUM]      = &small_mausoleum,
     [BUILDING_CARAVANSERAI]         = &caravanserai,
-    [BUILDING_CITY_MINT]            = &city_mint
+    [BUILDING_CITY_MINT]            = &city_mint,
+    [BUILDING_TRIUMPHAL_ARCH]       = &triumphal_arch
 };
 
 typedef struct {
     int walker_id;
-    int destination_id;
+    unsigned int destination_id;
     int resource;
     int cartloads;
 } monument_delivery;
@@ -209,6 +218,11 @@ int building_monument_deliver_resource(building *b, int resource)
 
 int building_monument_access_point(building *b, map_point *dst)
 {
+    if (b->type == BUILDING_TRIUMPHAL_ARCH) {
+        dst->x = b->x + 1;
+        dst->y = b->y + 1;
+        return 1;
+    }
     if (b->size < 3 || b->type == BUILDING_HIPPODROME) {
         dst->x = b->x;
         dst->y = b->y;
@@ -276,6 +290,26 @@ int building_monument_add_module(building *b, int module)
     return 1;
 }
 
+int building_monument_is_limited(building_type type)
+{
+    switch (type) {
+        case BUILDING_GRAND_TEMPLE_CERES:
+        case BUILDING_GRAND_TEMPLE_NEPTUNE:
+        case BUILDING_GRAND_TEMPLE_MERCURY:
+        case BUILDING_GRAND_TEMPLE_MARS:
+        case BUILDING_GRAND_TEMPLE_VENUS:
+        case BUILDING_PANTHEON:
+        case BUILDING_LIGHTHOUSE:
+        case BUILDING_CARAVANSERAI:
+        case BUILDING_COLOSSEUM:
+        case BUILDING_HIPPODROME:
+        case BUILDING_CITY_MINT:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 int building_monument_get_monument(int x, int y, int resource, int road_network_id, map_point *dst)
 {
     if (city_resource_is_stockpiled(resource)) {
@@ -284,7 +318,7 @@ int building_monument_get_monument(int x, int y, int resource, int road_network_
     int min_dist = INFINITE;
     building *min_building = 0;
     for (building_type type = BUILDING_MONUMENT_FIRST_ID; type < BUILDING_TYPE_MAX; type++) {
-        if (!MONUMENT_TYPES[type]) {
+        if (!MONUMENT_TYPES[type] || type == BUILDING_TRIUMPHAL_ARCH) { // triumphal arch should not be a destiantion for work camps
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
@@ -348,6 +382,9 @@ void building_monument_set_phase(building *b, int phase)
     }
     b->monument.phase = phase;
     map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (b->type == BUILDING_TRIUMPHAL_ARCH) {
+        map_terrain_add_triumphal_arch_roads(b->x, b->y, b->subtype.orientation);
+    }
     if (b->monument.phase != MONUMENT_FINISHED) {
         for (int resource = 0; resource < RESOURCE_MAX; resource++) {
             b->resources[resource] =
@@ -483,6 +520,8 @@ int building_monument_progress(building *b)
             city_message_post(1, MESSAGE_HIPPODROME_COMPLETE, 0, b->grid_offset);
         } else if (b->type == BUILDING_CARAVANSERAI) {
             city_message_post(1, MESSAGE_CARAVANSERAI_COMPLETE, 0, b->grid_offset);
+        } else if (b->type == BUILDING_TRIUMPHAL_ARCH) {
+            city_message_post(1, MESSAGE_TRIUMPHAL_ARCH_COMPLETE, 0, b->grid_offset);
         }
     }
     return 1;
@@ -500,7 +539,7 @@ void building_monument_initialize_deliveries(void)
     }
 }
 
-void building_monument_add_delivery(int monument_id, int figure_id, int resource_id, int num_loads)
+void building_monument_add_delivery(unsigned int monument_id, int figure_id, int resource_id, int num_loads)
 {
     monument_delivery *delivery;
     array_new_item(monument_deliveries, delivery);
@@ -525,6 +564,17 @@ int building_monument_has_delivery_for_worker(int figure_id)
     return 0;
 }
 
+int building_monument_has_delivery_for_building(int monument_id)
+{
+    monument_delivery *delivery;
+    array_foreach(monument_deliveries, delivery) {
+        if (delivery->destination_id == monument_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void building_monument_remove_delivery(int figure_id)
 {
     monument_delivery *delivery;
@@ -536,7 +586,7 @@ void building_monument_remove_delivery(int figure_id)
     array_trim(monument_deliveries);
 }
 
-void building_monument_remove_all_deliveries(int monument_id)
+void building_monument_remove_all_deliveries(unsigned int monument_id)
 {
     monument_delivery *delivery;
     array_foreach(monument_deliveries, delivery) {
@@ -547,7 +597,7 @@ void building_monument_remove_all_deliveries(int monument_id)
     array_trim(monument_deliveries);
 }
 
-static int resource_in_delivery(int monument_id, int resource_id)
+static int resource_in_delivery(unsigned int monument_id, int resource_id)
 {
     int resources = 0;
     monument_delivery *delivery;
@@ -632,7 +682,7 @@ int building_monument_has_labour_problems(building *b)
 
 int building_monument_working(building_type type)
 {
-    int monument_id = building_monument_get_id(type);
+    unsigned int monument_id = building_monument_get_id(type);
     building *b = building_get(monument_id);
     if (!monument_id) {
         return 0;
@@ -675,7 +725,7 @@ int building_monument_has_required_resources_to_build(building_type type)
 
 int building_monument_upgraded(building_type type)
 {
-    int monument_id = building_monument_working(type);
+    unsigned int monument_id = building_monument_working(type);
     building *b = building_get(monument_id);
     if (!monument_id) {
         return 0;
@@ -688,7 +738,7 @@ int building_monument_upgraded(building_type type)
 
 int building_monument_module_type(building_type type)
 {
-    int monument_id = building_monument_working(type);
+    unsigned int monument_id = building_monument_working(type);
 
     if (!monument_id) {
         return 0;

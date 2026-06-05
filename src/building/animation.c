@@ -4,8 +4,8 @@
 #include "building/count.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/model.h"
 #include "building/monument.h"
+#include "building/properties.h"
 #include "building/type.h"
 #include "core/calc.h"
 #include "core/image.h"
@@ -74,7 +74,7 @@ int building_animation_offset(building *b, int image_id, int grid_offset)
         return 0;
     }
     if (building_monument_is_monument(b) && (b->type != BUILDING_ORACLE && b->type != BUILDING_NYMPHAEUM &&
-        (b->num_workers <= 0 || b->monument.phase != MONUMENT_FINISHED))) {
+        b->type != BUILDING_TRIUMPHAL_ARCH && (b->num_workers <= 0 || b->monument.phase != MONUMENT_FINISHED))) {
         return 0;
     }
     if (b->type == BUILDING_CITY_MINT &&

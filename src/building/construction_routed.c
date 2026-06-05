@@ -1,8 +1,13 @@
 #include "construction_routed.h"
 
 #include "core/calc.h"
+#include "core/config.h"
+#include "building/building.h"
+#include "building/connectable.h"
 #include "building/construction.h"
-#include "building/model.h"
+#include "building/construction_building.h"
+#include "building/properties.h"
+#include "building/roadblock.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -16,7 +21,8 @@
 
 #include <stdlib.h>
 
-static int place_routed_building(int x_start, int y_start, int x_end, int y_end, routed_building_type type, int *items)
+static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
+    routed_building_type type, int *items, int measure_only)
 {
     static const int direction_indices[8][4] = {
         {0, 2, 6, 4},
@@ -44,20 +50,59 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
         switch (type) {
             default:
             case ROUTED_BUILDING_ROAD:
+                if (!measure_only && map_routing_is_gate_transformable(grid_offset)) {
+                    building *b = building_get(map_building_at(grid_offset));
+                    building_type gate_type = building_connectable_gate_type(b->type);
+                    if (gate_type) {
+                        game_undo_record_building_type(b);
+                        building_change_type(b, gate_type);
+                        if (config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
+                            building_roadblock_accept_all(b);
+                        } else {
+                            building_roadblock_accept_none(b);
+                        }
+                    }
+                }
+                building_construction_auto_clear_vegetation_at(grid_offset, measure_only);
                 *items += map_tiles_set_road(x_end, y_end);
                 break;
-            case ROUTED_BUILDING_WALL:
-                *items += map_tiles_set_wall(x_end, y_end);
-                break;
             case ROUTED_BUILDING_AQUEDUCT:
+                building_construction_auto_clear_vegetation_at(grid_offset, measure_only);
                 *items += map_building_tiles_add_aqueduct(x_end, y_end);
+                if (!measure_only) {
+                    building *aqueduct = building_create(BUILDING_AQUEDUCT, x_end, y_end);
+                    map_building_set(grid_offset, aqueduct->id);
+                    map_terrain_add(grid_offset, TERRAIN_BUILDING);
+                    map_property_clear_multi_tile_xy(grid_offset);
+                    game_undo_add_building(aqueduct);
+                    aqueduct->subtype.instances++;
+                }
                 break;
             case ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC:
                 *items += 1;
                 break;
-            case ROUTED_BUILDING_HIGHWAY:
+            case ROUTED_BUILDING_HIGHWAY: {
+                // Highway is a 2x2 footprint per step. Consecutive steps overlap by 50%,
+                // so only count vegetation for tiles that weren't already highway from a
+                // previous step in this same dry-run; otherwise we'd double-count.
+                int corners[4] = {
+                    grid_offset,
+                    grid_offset + map_grid_delta(1, 0),
+                    grid_offset + map_grid_delta(0, 1),
+                    grid_offset + map_grid_delta(1, 1),
+                };
+                int was_highway[4];
+                for (int i = 0; i < 4; i++) {
+                    was_highway[i] = map_terrain_is(corners[i], TERRAIN_HIGHWAY);
+                }
                 *items += map_tiles_set_highway(x_end, y_end);
+                for (int i = 0; i < 4; i++) {
+                    if (!was_highway[i]) {
+                        building_construction_auto_clear_vegetation_at(corners[i], measure_only);
+                    }
+                }
                 break;
+            }
         }
         int direction = calc_general_direction(x_end, y_end, x_start, y_start);
         if (direction == DIR_8_NONE) {
@@ -92,19 +137,29 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
         TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER |
         TERRAIN_SHRUB | TERRAIN_GARDEN | TERRAIN_ELEVATION |
         TERRAIN_RUBBLE | TERRAIN_BUILDING | TERRAIN_WALL;
+    if (config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES)) {
+        forbidden_terrain_mask &= ~(TERRAIN_TREE | TERRAIN_SHRUB);
+    }
     if (map_terrain_is(start_offset, forbidden_terrain_mask)) {
-        return 0;
+        if (!(map_routing_is_gate_transformable(start_offset)) && !map_terrain_is(start_offset, TERRAIN_AQUEDUCT)) {
+            return 0;
+        }
     }
     if (map_terrain_is(end_offset, forbidden_terrain_mask)) {
-        return 0;
+        if (!(map_routing_is_gate_transformable(end_offset)) && !map_terrain_is(end_offset, TERRAIN_AQUEDUCT)) {
+            return 0;
+        }
     }
 
     int items_placed = 0;
     if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_ROAD, x_start, y_start) &&
-            place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_ROAD, &items_placed)) {
+            place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_ROAD, &items_placed, measure_only)) {
         if (!measure_only) {
             map_routing_update_land();
+            building_connectable_update_connections();
             window_invalidate();
+        } else {
+            building_connectable_update_connections();
         }
     }
     return items_placed;
@@ -119,16 +174,19 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
         TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_BUILDING |
         TERRAIN_SHRUB | TERRAIN_GARDEN | TERRAIN_ELEVATION |
         TERRAIN_RUBBLE | TERRAIN_ACCESS_RAMP;
-    if (map_terrain_is(start_offset, forbidden_terrain_mask)) {
+    if (config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES)) {
+        forbidden_terrain_mask &= ~(TERRAIN_TREE | TERRAIN_SHRUB);
+    }
+    if (map_terrain_is(start_offset, forbidden_terrain_mask) && !map_terrain_is(start_offset, TERRAIN_AQUEDUCT)) {
         return 0;
     }
-    if (map_terrain_is(end_offset, forbidden_terrain_mask)) {
+    if (map_terrain_is(end_offset, forbidden_terrain_mask) && !map_terrain_is(end_offset, TERRAIN_AQUEDUCT)) {
         return 0;
     }
 
     int items_placed = 0;
     if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_HIGHWAY, x_start, y_start) &&
-        place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_HIGHWAY, &items_placed)) {
+        place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_HIGHWAY, &items_placed, measure_only)) {
         map_tiles_update_all_plazas();
         if (!measure_only) {
             map_routing_update_land();
@@ -138,13 +196,17 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
     return items_placed;
 }
 
-int building_construction_place_aqueduct(int x_start, int y_start, int x_end, int y_end, int *cost)
+int building_construction_place_aqueduct(int measure_only, int x_start, int y_start, int x_end, int y_end, int *cost)
 {
     game_undo_restore_map(0);
 
     int item_cost = model_get_building(BUILDING_AQUEDUCT)->cost;
     *cost = 0;
     int blocked = 0;
+    int blocking_mask = TERRAIN_NOT_CLEAR;
+    if (config_get(CONFIG_GP_CH_AUTO_CLEAR_TREES)) {
+        blocking_mask &= ~(TERRAIN_TREE | TERRAIN_SHRUB);
+    }
     int grid_offset = map_grid_offset(x_start, y_start);
     if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
         if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
@@ -153,7 +215,7 @@ int building_construction_place_aqueduct(int x_start, int y_start, int x_end, in
         if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
             blocked = 1;
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    } else if (map_terrain_is(grid_offset, blocking_mask) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         blocked = 1;
     }
     grid_offset = map_grid_offset(x_end, y_end);
@@ -165,7 +227,7 @@ int building_construction_place_aqueduct(int x_start, int y_start, int x_end, in
             blocked = 1;
         }
 
-    } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    } else if (map_terrain_is(grid_offset, blocking_mask) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         blocked = 1;
     }
     if (blocked) {
@@ -175,14 +237,14 @@ int building_construction_place_aqueduct(int x_start, int y_start, int x_end, in
         return 0;
     }
     int num_items;
-    place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_AQUEDUCT, &num_items);
+    place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_AQUEDUCT, &num_items, measure_only);
     *cost = item_cost * num_items;
     return 1;
 }
 
 int building_construction_place_aqueduct_for_reservoir(
-    int measure_only, int x_start, int y_start, int x_end, int y_end, int *items)
+    int measure_only, int should_draw, int x_start, int y_start, int x_end, int y_end, int *items)
 {
-    routed_building_type type = measure_only ? ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC : ROUTED_BUILDING_AQUEDUCT;
-    return place_routed_building(x_start, y_start, x_end, y_end, type, items);
+    routed_building_type type = should_draw ? ROUTED_BUILDING_AQUEDUCT : ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC;
+    return place_routed_building(x_start, y_start, x_end, y_end, type, items, measure_only);
 }

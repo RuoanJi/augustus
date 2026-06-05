@@ -26,6 +26,7 @@ typedef enum {
     // Fan translations
     LANGUAGE_CZECH,
     LANGUAGE_GREEK,
+    LANGUAGE_UKRAINIAN,
     LANGUAGE_MAX_ITEMS
 } language_type;
 
@@ -64,5 +65,7 @@ int locale_paragraph_indent(void);
  * @return Boolean true if the filenames should be translated, false if we should use English
  */
 int locale_translate_rank_autosaves(void);
+
+int locale_is_asian(void);
 
 #endif // CORE_LOCALE_H

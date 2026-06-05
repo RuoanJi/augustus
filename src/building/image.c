@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/connectable.h"
+#include "building/highway_station.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -13,7 +14,9 @@
 #include "core/image_group.h"
 #include "core/random.h"
 #include "game/resource.h"
+#include "map/building.h"
 #include "map/random.h"
+#include "map/terrain.h"
 #include "scenario/property.h"
 
 static const struct {
@@ -49,6 +52,27 @@ int building_image_get_base_farm_crop(building_type type)
             return image_group(GROUP_BUILDING_FARM_CROPS) + 20;
         case BUILDING_PIG_FARM:
             return image_group(GROUP_BUILDING_FARM_CROPS) + 25;
+        default:
+            return 0;
+    }
+}
+
+int building_image_get_garden_gate_image(int grid_offset)
+{
+    building_type b_type = map_building_type_at(grid_offset);
+    b_type = building_connectable_gate_type(b_type);
+
+    switch (b_type) {
+        case BUILDING_ROOFED_GARDEN_WALL_GATE:
+            return assets_get_image_id("Aesthetics", "Garden_Gate_B") + building_connectable_get_garden_gate_offset(grid_offset);
+        case BUILDING_LOOPED_GARDEN_GATE:
+            return assets_get_image_id("Aesthetics", "Garden_Gate_A") + building_connectable_get_garden_gate_offset(grid_offset);
+        case BUILDING_PANELLED_GARDEN_GATE:
+            return assets_get_image_id("Aesthetics", "Garden_Gate_C") + building_connectable_get_garden_gate_offset(grid_offset);
+        case BUILDING_HEDGE_GATE_LIGHT:
+            return assets_get_image_id("Aesthetics", "L Hedge Gate") + building_connectable_get_hedge_gate_offset(grid_offset);
+        case BUILDING_HEDGE_GATE_DARK:
+            return assets_get_image_id("Aesthetics", "D Hedge Gate") + building_connectable_get_hedge_gate_offset(grid_offset);
         default:
             return 0;
     }
@@ -265,6 +289,12 @@ int building_image_get(const building *b)
                 default:
                     return assets_get_image_id("Industry", "Brickworks_C_ON");
             }
+        case BUILDING_HIGHWAY_STATION:
+            if (building_highway_station_is_functional((building *) b)) {
+                return assets_get_image_id("Admin_Logistics", "Highway_Station_ON");
+            } else {
+                return assets_get_image_id("Admin_Logistics", "Highway_Station_OFF");
+            }
         case BUILDING_CONCRETE_MAKER:
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
@@ -454,18 +484,17 @@ int building_image_get(const building *b)
         {
             int map_orientation = city_view_orientation();
             int orientation_is_top_bottom = map_orientation == DIR_0_TOP || map_orientation == DIR_4_BOTTOM;
-            if (b->subtype.orientation == 1) {
-                if (orientation_is_top_bottom) {
-                    return image_group(GROUP_BUILDING_TRIUMPHAL_ARCH);
-                } else {
-                    return image_group(GROUP_BUILDING_TRIUMPHAL_ARCH) + 2;
-                }
-            } else {
-                if (orientation_is_top_bottom) {
-                    return image_group(GROUP_BUILDING_TRIUMPHAL_ARCH) + 2;
-                } else {
-                    return image_group(GROUP_BUILDING_TRIUMPHAL_ARCH);
-                }
+            int is_rotated = (b->subtype.orientation == 1 && !orientation_is_top_bottom) ||
+                (b->subtype.orientation != 1 && orientation_is_top_bottom);
+            switch (b->monument.phase) {
+                case MONUMENT_START:
+                    return assets_get_image_id("Monuments", is_rotated ? "Triumphal_Arch_Construction_01_R" :
+                        "Triumphal_Arch_Construction_01");
+                case 2:
+                    return assets_get_image_id("Monuments", is_rotated ? "Triumphal_Arch_Construction_02_R" :
+                        "Triumphal_Arch_Construction_02");
+                default:
+                    return image_group(GROUP_BUILDING_TRIUMPHAL_ARCH) + (is_rotated * 2);
             }
         }
         case BUILDING_SENATE:
@@ -548,7 +577,7 @@ int building_image_get(const building *b)
             }
             return image_id;
         }
-        case BUILDING_FORT:
+        case BUILDING_MENU_FORT: // old saves used this type as generic fort, now it's menu-only type
         case BUILDING_FORT_JAVELIN:
         case BUILDING_FORT_LEGIONARIES:
         case BUILDING_FORT_MOUNTED:
@@ -928,7 +957,7 @@ int building_image_get(const building *b)
             return image_group + image_offset;
         }
         case BUILDING_BURNING_RUIN:
-            if (b->data.rubble.was_tent) {
+            if (building_was_tent(b)) {
                 return image_group(GROUP_TERRAIN_RUBBLE_TENT);
             } else {
                 return image_group(GROUP_TERRAIN_RUBBLE_GENERAL) + 9 * (map_random_get(b->grid_offset) & 3);
