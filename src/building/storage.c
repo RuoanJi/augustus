@@ -222,22 +222,24 @@ building_storage_state building_storage_get_state(building *b, int resource, int
     }
     int amount = (b->type == BUILDING_WAREHOUSE) ?
         building_warehouse_get_amount(b, resource) : building_granary_get_amount(b, resource);
+    int entry_quantity = (b->type == BUILDING_WAREHOUSE) 
+        ? entry->quantity : entry->quantity * 10;
 
     switch (entry->state) {
         case BUILDING_STORAGE_STATE_ACCEPTING:
-            if (amount < entry->quantity) {
+            if (amount < entry_quantity) {
                 return BUILDING_STORAGE_STATE_ACCEPTING;
             }
             break;
 
         case BUILDING_STORAGE_STATE_GETTING:
-            if (amount <= entry->quantity) {
+            if (amount <= entry_quantity) {
                 return BUILDING_STORAGE_STATE_GETTING;
             }
             break;
 
         case BUILDING_STORAGE_STATE_MAINTAINING:
-            if (amount <= entry->quantity) {
+            if (amount <= entry_quantity) {
                 return BUILDING_STORAGE_STATE_MAINTAINING;
             }
             break;

@@ -287,7 +287,7 @@ int building_granary_maximum_receptible_amount(building *b, int resource)
         return 0;
     }
 
-    int max_accepted_amount = s->resource_state[resource].quantity; // max player-set limit
+    int max_accepted_amount = s->resource_state[resource].quantity * 10; // max player-set limit
     int current_stored = b->resources[resource]; // already stored
     int remaining_for_resource = max_accepted_amount - current_stored;
 

@@ -60,8 +60,12 @@ void trade_route_set(int route_id, resource_type resource, int limit, int buying
 
 int trade_route_limit(int route_id, resource_type resource, int buying)
 {
-    return buying ? array_item(routes, route_id)->buys.limit[resource] :
+    int limit = buying ? array_item(routes, route_id)->buys.limit[resource] :
         array_item(routes, route_id)->sells.limit[resource];
+    if (resource_is_food(resource)) {
+        limit *= 10;
+	}
+    return limit;
 }
 
 int trade_route_traded(int route_id, resource_type resource, int buying)
@@ -130,7 +134,11 @@ void trade_route_reset_traded(int route_id)
 int trade_route_limit_reached(int route_id, resource_type resource, int buying)
 {
     route_resource *route = get_route_resource(route_id, buying);
-    return route->traded[resource] >= route->limit[resource];
+    if (resource == RESOURCE_WHEAT) {
+        int test = 1;
+    }
+    int limit = resource_is_food(resource) ? route->limit[resource] * 10 : route->limit[resource];
+    return route->traded[resource] >= limit;
 }
 
 void trade_routes_save_state(buffer *trade_routes)

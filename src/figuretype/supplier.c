@@ -81,7 +81,7 @@ static int take_food_from_granary(figure *f, int market_id, int granary_id)
     if (!granary_loads_take) {
         return 0;
     }
-    int amount_taken = building_granary_try_remove_resource(granary, resource, granary_loads_take);
+     int amount_taken = building_granary_try_remove_resource(granary, resource, granary_loads_take);
 
     // create delivery boys
     int type = FIGURE_DELIVERY_BOY;
@@ -125,7 +125,7 @@ static int take_resource_from_generic_building(figure *f, int building_id)
 
 static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amount)
 {
-    building *warehouse = building_get(warehouse_id);
+     building *warehouse = building_get(warehouse_id);
     if (warehouse->type != BUILDING_WAREHOUSE) {
         return take_resource_from_generic_building(f, warehouse_id);
     }
@@ -152,8 +152,8 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amo
         // create delivery boys (one per load above the first)
         int supplier_id = f->id;
         int boy1 = figure_supplier_create_delivery_boy(supplier_id, supplier_id, FIGURE_DELIVERY_BOY);
-        if (amount_taken > 1) {
-            figure_supplier_create_delivery_boy(boy1, supplier_id, FIGURE_DELIVERY_BOY);
+        for (int i = 1; i < amount_taken; i++) {
+            boy1 = figure_supplier_create_delivery_boy(boy1, supplier_id, FIGURE_DELIVERY_BOY);
         }
     }
     return 1;
@@ -269,7 +269,7 @@ void figure_supplier_action(figure *f)
                     } else if (f->type == FIGURE_HIGHWAY_STATION_SUPPLIER) {
                         max_amount = 4; // larger trips so monthly consumption can keep accumulating
                     } else {
-                        max_amount = 2;
+                        max_amount = 8;
                     }
                     if (!take_resource_from_warehouse(f, f->destination_building_id, max_amount)) {
                         f->state = FIGURE_STATE_DEAD;
@@ -393,7 +393,7 @@ void figure_delivery_boy_action(figure *f)
     figure_image_increase_offset(f, 12);
     f->cart_image_id = 0;
 
-    figure *leader = figure_get(f->leading_figure_id);
+     figure *leader = figure_get(f->leading_figure_id);
     if (f->leading_figure_id <= 0 || leader->action_state == FIGURE_ACTION_149_CORPSE) {
         f->state = FIGURE_STATE_DEAD;
     } else {
