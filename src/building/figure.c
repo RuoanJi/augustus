@@ -1521,11 +1521,11 @@ static void spawn_figure_wharf(building *b)
             figure *f = figure_create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
             f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
             f->resource_id = RESOURCE_FISH;
-            f->loads_sold_or_carrying = 8;
             f->building_id = b->id;
             b->figure_id = f->id;
             f->wait_ticks = 30;
             f->loads_sold_or_carrying = 8;
+            city_finance_trade_ledger_add_produced(RESOURCE_FISH);
         }
     }
 }

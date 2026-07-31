@@ -11,6 +11,9 @@ typedef uint32_t color_t;
 #define COLOR_WHITE 0xffffffff
 
 #define COLOR_GRID 0xff180800
+#define COLOR_GRID_CENTRAL 0xff162d39
+#define COLOR_GRID_DESERT 0xff464646
+#define COLOR_GRID_NORTHERN 0xff131b1f
 
 #define COLOR_SG2_TRANSPARENT 0xfff700ff
 #define COLOR_TOOLTIP 0xff424242
@@ -30,6 +33,9 @@ typedef uint32_t color_t;
 #define COLOR_FONT_GRAY 0xff888888
 #define COLOR_FONT_PLAIN 0xff180800
 #define COLOR_FONT_GREEN 0xff00cc00
+#define COLOR_FONT_GRAY_GREEN 0xff6b6142
+#define COLOR_FONT_GRAY_GREEN_50 0x806b6142
+#define COLOR_FONT_GRAY_50 0x80888888
 
 #define COLOR_INSET_LIGHT 0xffffffff
 #define COLOR_INSET_DARK 0xff848484
@@ -45,6 +51,7 @@ typedef uint32_t color_t;
 #define COLOR_MAINTAIN_ICON 0xfffbf0f5
 
 #define COLOR_MASK_NONE 0xffffffff
+#define COLOR_MASK_50_OPACITY 0x80FFFFFF
 #define COLOR_MASK_RED 0xffff0818
 #define COLOR_MASK_GREEN 0xff18ff18
 #define COLOR_MASK_PURPLE 0xff7f0000
@@ -75,8 +82,8 @@ typedef uint32_t color_t;
 #define COLOR_MASK_TYRIAN_PURPLE 0xff66023C
 #define COLOR_MASK_LIGHT_BLUE 0xff3552ff
 #define COLOR_MASK_SKY_BLUE 0xff90aaff
-#define COLOR_MASK_POSITIVE_RANGE 0x80005100    //50% transparent DARK_GREEN
-#define COLOR_MASK_NEGATIVE_RANGE 0x40ff0000    //25% transparent COLOR_RED
+#define COLOR_MASK_POSITIVE_RANGE 0x807beb73    //50% transparent light green
+#define COLOR_MASK_NEGATIVE_RANGE 0x40ff0818   //25% transparent COLOR_RED
 #define COLOR_MASK_REPAIR_RANGE 0x4000ff00      //25% transparent COLOR_GREEN
 #define COLOR_MASK_RESERVOIR_RANGE 0x6633ddff   //40% transparent cyan blue
 
@@ -102,6 +109,10 @@ typedef uint32_t color_t;
 #define COLOR_MASK_PASTEL_GRAY        0xffc0c0c0  // balanced neutral gray
 #define COLOR_MASK_PASTEL_BLACK       0xff3a3a3a  // soft black 
 #define COLOR_MASK_PASTEL_DARK_BLUE   0xff6d87b8  // desaturated navy blue
+#define COLOR_MASK_PASTEL_BROWN       0xffa98462  // medium wood brown
+#define COLOR_MASK_PASTEL_BROWN2      0xffb7a08a  // muted taupe brown
+#define COLOR_MASK_PASTEL_BROWN3      0xffc4a484  // classic pastel brown
+#define COLOR_MASK_PASTEL_BROWN4      0xffd8c3ad  // light beige brown
 
 #define COLOR_MOUSE_DARK_GRAY 0xff3f3f3f
 #define COLOR_MOUSE_MEDIUM_GRAY 0xff737373
