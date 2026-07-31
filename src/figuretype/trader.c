@@ -1003,9 +1003,9 @@ int figure_trade_land_trade_units(void)
 
         int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
         if (pct_workers >= 100) { // full laborers
-            add_unit = 4;
+            add_unit = 40;
         } else if (pct_workers > 0) {
-            add_unit = 2;
+            add_unit = 20;
         }
         unit += add_unit;
     }
