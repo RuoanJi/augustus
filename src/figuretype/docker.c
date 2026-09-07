@@ -63,7 +63,7 @@ static int try_import_resource(int building_id, int resource, int city_id, int q
     return result;
 }
 
-static int try_export_resource(int building_id, int resource, int city_id)
+static int try_export_resource(int building_id, int resource, int city_id, int quantity)
 {
     building *b = building_get(building_id);
     if (b->type != BUILDING_WAREHOUSE && b->type != BUILDING_GRANARY) {
@@ -75,15 +75,12 @@ static int try_export_resource(int building_id, int resource, int city_id)
     }
     int result = 0;
     if (b->type == BUILDING_GRANARY) {
-        result = building_granary_remove_export(b, resource, 1, 0);
-        if (result) {
-            trade_route_increase_traded(empire_city_get_route_id(city_id), resource, 1);
-        }
+        result = building_granary_remove_export(b, resource, quantity, 0);
     } else if (b->type == BUILDING_WAREHOUSE) {
-        result = building_warehouse_remove_export(b, resource, 1, 0);
-        if (result) {
-            trade_route_increase_traded(empire_city_get_route_id(city_id), resource, 1);
-        }
+        result = building_warehouse_remove_export(b, resource, quantity, 0);
+    }
+    for (int i = 0; i < result; i++) {
+        trade_route_increase_traded(empire_city_get_route_id(city_id), resource, 1);
     }
     return result;
 }
@@ -308,7 +305,15 @@ static int fetch_export_resource(figure *f, building *dock, int add_to_bought)
         return 0;
     }
     if (add_to_bought) {
-        ship->trader_amount_bought++;
+        int available_capacity = figure_trade_sea_trade_units() - ship->trader_amount_bought;
+        int load_capacity = docker_load_capacity(resource);
+        if (available_capacity <= 0) {
+            return 0;
+        }
+        f->loads_sold_or_carrying = load_capacity < available_capacity ? load_capacity : available_capacity;
+        ship->trader_amount_bought += f->loads_sold_or_carrying;
+    } else if (f->loads_sold_or_carrying == 0) {
+        f->loads_sold_or_carrying = docker_load_capacity(resource);
     }
     if (f->destination_building_id != destination_id) {
         figure_route_remove(f);
@@ -475,7 +480,6 @@ void figure_docker_action(figure *f)
         case FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING:
             set_cart_graphic(f);
             figure_movement_move_ticks(f, 1);
-            f->loads_sold_or_carrying = 1;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_134_DOCKER_EXPORT_QUEUE;
                 f->wait_ticks = 0;
@@ -563,17 +567,30 @@ void figure_docker_action(figure *f)
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
                 f->wait_ticks = 0;
-                if (try_export_resource(f->destination_building_id, f->resource_id, trade_city_id)) {
+                int reserved = f->loads_sold_or_carrying;
+                int exported = try_export_resource(f->destination_building_id, f->resource_id,
+                    trade_city_id, reserved);
+                if (exported > 0) {
                     int ship_id = b->data.dock.trade_ship_id;
                     figure *ship = figure_get(ship_id);
                     unsigned short trader_id = ship->trader_id;
                     int storage_id = building_get(f->destination_building_id)->storage_id;
-                    trader_record_bought_resource(ship_id, trader_id, f->resource_id, storage_id);
+                    for (int i = 0; i < exported; i++) {
+                        trader_record_bought_resource(ship_id, trader_id, f->resource_id, storage_id);
+                    }
                     city_health_update_sickness_level_in_building(b->id);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING;
                 } else {
+                    figure *ship = figure_get(b->data.dock.trade_ship_id);
+                    ship->trader_amount_bought -= reserved;
+                    f->loads_sold_or_carrying = 0;
                     fetch_export_resource(f, b, 1);
+                }
+                if (exported > 0 && exported < reserved) {
+                    figure *ship = figure_get(b->data.dock.trade_ship_id);
+                    ship->trader_amount_bought -= reserved - exported;
+                    f->loads_sold_or_carrying = exported;
                 }
             }
             f->image_offset = 0;
