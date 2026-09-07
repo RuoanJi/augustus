@@ -350,6 +350,20 @@ static void set_docker_as_idle(figure *f)
     f->loads_sold_or_carrying = 0;
 }
 
+static void return_excessive_import_cargo_to_ship(figure *f, building *dock)
+{
+    if (f->loads_sold_or_carrying <= 0 || !dock->data.dock.trade_ship_id) {
+        return;
+    }
+    figure *ship = figure_get(dock->data.dock.trade_ship_id);
+    if (ship->state != FIGURE_STATE_ALIVE || ship->action_state != FIGURE_ACTION_112_TRADE_SHIP_MOORED) {
+        return;
+    }
+    ship->loads_sold_or_carrying += f->loads_sold_or_carrying;
+    f->loads_sold_or_carrying = 0;
+    f->resource_id = 0;
+}
+
 void figure_docker_action(figure *f)
 {
     building *b = building_get(f->building_id);
@@ -382,11 +396,7 @@ void figure_docker_action(figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_132_DOCKER_IDLING:
-            if (f->loads_sold_or_carrying > 0 && f->resource_id != RESOURCE_NONE) {
-                set_cart_graphic(f);
-            } else {
-                f->cart_image_id = 0;
-            }
+            f->cart_image_id = 0;
             if (!deliver_import_resource(f, b)) {
                 if (f->loads_sold_or_carrying == 0) {
                     fetch_export_resource(f, b, 1);
@@ -544,11 +554,13 @@ void figure_docker_action(figure *f)
                     f->wait_ticks = 0;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
+                    return_excessive_import_cargo_to_ship(f, b);
                     if (f->loads_sold_or_carrying == 0) {
                         f->resource_id = 0;
                         fetch_export_resource(f, b, 1);
                     }
                 } else {
+                    return_excessive_import_cargo_to_ship(f, b);
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
