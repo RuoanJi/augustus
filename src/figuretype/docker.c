@@ -382,7 +382,11 @@ void figure_docker_action(figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_132_DOCKER_IDLING:
-            set_cart_graphic(f);
+            if (f->loads_sold_or_carrying > 0 && f->resource_id != RESOURCE_NONE) {
+                set_cart_graphic(f);
+            } else {
+                f->cart_image_id = 0;
+            }
             if (!deliver_import_resource(f, b)) {
                 if (f->loads_sold_or_carrying == 0) {
                     fetch_export_resource(f, b, 1);
