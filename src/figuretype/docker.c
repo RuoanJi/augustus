@@ -23,6 +23,16 @@
 #include "map/road_access.h"
 
 #define INFINITE 10000
+#define DOCKER_FOOD_LOAD_CAPACITY 8
+#define DOCKER_NON_FOOD_LOAD_CAPACITY 4
+
+static int docker_load_capacity(int resource)
+{
+    if (!config_get(CONFIG_GP_CH_DOCKERS_GET_MULTIPLE)) {
+        return 1;
+    }
+    return resource_is_food(resource) ? DOCKER_FOOD_LOAD_CAPACITY : DOCKER_NON_FOOD_LOAD_CAPACITY;
+}
 
 static int try_import_resource(int building_id, int resource, int city_id, int quantity)
 {
@@ -43,15 +53,12 @@ static int try_import_resource(int building_id, int resource, int city_id, int q
     int route_id = empire_city_get_route_id(city_id);
     int result = 0;
     if (b->type == BUILDING_GRANARY) {
-        result = building_granary_add_import(b, resource, 1, 0);
-        if (result) {
-            trade_route_increase_traded(route_id, resource, 0);
-        }
+        result = building_granary_add_import(b, resource, quantity, 0);
     } else if (b->type == BUILDING_WAREHOUSE) {
         result = building_warehouse_add_import(b, resource, quantity, 0);
-        if (result) {
-            trade_route_increase_traded(route_id, resource, 0);
-        }
+    }
+    for (int i = 0; i < result; i++) {
+        trade_route_increase_traded(route_id, resource, 0);
     }
     return result;
 }
@@ -260,7 +267,13 @@ static int deliver_import_resource(figure *f, building *dock)
         return 0;
     }
     if (!f->destination_building_id) {
-        ship->loads_sold_or_carrying--;
+        int is_new_load = f->loads_sold_or_carrying == 0;
+        if (is_new_load) {
+            int capacity = docker_load_capacity(resource);
+            f->loads_sold_or_carrying = capacity < ship->loads_sold_or_carrying ?
+                capacity : ship->loads_sold_or_carrying;
+            ship->loads_sold_or_carrying -= f->loads_sold_or_carrying;
+        }
         f->action_state = FIGURE_ACTION_133_DOCKER_IMPORT_QUEUE;
     } else {
         f->action_state = FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE;
@@ -311,7 +324,16 @@ static int fetch_export_resource(figure *f, building *dock, int add_to_bought)
 
 static void set_cart_graphic(figure *f)
 {
-    f->cart_image_id = resource_get_data(f->resource_id)->image.cart.single_load;
+    int carried = f->loads_sold_or_carrying;
+    if (carried == 0 || f->resource_id == RESOURCE_NONE) {
+        f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
+    } else if (carried == 1) {
+        f->cart_image_id = resource_get_data(f->resource_id)->image.cart.single_load;
+    } else if (resource_is_food(f->resource_id) && carried >= DOCKER_FOOD_LOAD_CAPACITY) {
+        f->cart_image_id = resource_get_data(f->resource_id)->image.cart.eight_loads;
+    } else {
+        f->cart_image_id = resource_get_data(f->resource_id)->image.cart.multiple_loads;
+    }
 }
 
 static void set_docker_as_idle(figure *f)
@@ -355,9 +377,11 @@ void figure_docker_action(figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_132_DOCKER_IDLING:
-            f->cart_image_id = 0;
+            set_cart_graphic(f);
             if (!deliver_import_resource(f, b)) {
-                fetch_export_resource(f, b, 1);
+                if (f->loads_sold_or_carrying == 0) {
+                    fetch_export_resource(f, b, 1);
+                }
             }
             f->image_offset = 0;
             break;
@@ -420,7 +444,6 @@ void figure_docker_action(figure *f)
         case FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE:
             set_cart_graphic(f);
             figure_movement_move_ticks(f, 1);
-            f->loads_sold_or_carrying = 1;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_139_DOCKER_IMPORT_AT_STORAGE;
                 f->wait_ticks = 0;
@@ -473,7 +496,13 @@ void figure_docker_action(figure *f)
             }
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                set_docker_as_idle(f);
+                if (f->loads_sold_or_carrying > 0 && f->resource_id != RESOURCE_NONE) {
+                    f->action_state = FIGURE_ACTION_132_DOCKER_IDLING;
+                    f->destination_building_id = 0;
+                    f->wait_ticks = 0;
+                } else {
+                    set_docker_as_idle(f);
+                }
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 figure_route_remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
@@ -490,21 +519,27 @@ void figure_docker_action(figure *f)
                 } else {
                     trade_city_id = 0;
                 }
-                if (try_import_resource(f->destination_building_id, f->resource_id,
-                    trade_city_id, f->loads_sold_or_carrying)) {
+                int imported = try_import_resource(f->destination_building_id, f->resource_id,
+                    trade_city_id, f->loads_sold_or_carrying);
+                if (imported > 0) {
                     int ship_id = b->data.dock.trade_ship_id;
                     figure *ship = figure_get(ship_id);
                     unsigned short trader_id = ship->trader_id;
                     int storage_id = building_get(f->destination_building_id)->storage_id;
-                    trader_record_sold_resource(ship_id, trader_id, f->resource_id, storage_id);
+                    for (int i = 0; i < imported; i++) {
+                        trader_record_sold_resource(ship_id, trader_id, f->resource_id, storage_id);
+                    }
                     city_health_update_sickness_level_in_building(b->id);
                     city_health_dispatch_sickness(f);
+                    f->loads_sold_or_carrying -= imported;
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                     f->wait_ticks = 0;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
-                    f->resource_id = 0;
-                    fetch_export_resource(f, b, 1);
+                    if (f->loads_sold_or_carrying == 0) {
+                        f->resource_id = 0;
+                        fetch_export_resource(f, b, 1);
+                    }
                 } else {
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                     f->destination_x = f->source_x;
